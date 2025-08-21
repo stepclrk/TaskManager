@@ -16,6 +16,9 @@ function setupEventListeners() {
     // Edit project button
     document.getElementById('editProjectBtn').addEventListener('click', openEditProjectModal);
     
+    // Delete project button
+    document.getElementById('deleteProjectBtn').addEventListener('click', deleteCurrentProject);
+    
     // Add task button
     document.getElementById('addTaskBtn').addEventListener('click', openTaskModal);
     
@@ -213,6 +216,36 @@ function displayTasks(tasks) {
             </div>
         `;
     }).join('');
+}
+
+async function deleteCurrentProject() {
+    if (!currentProject) return;
+    
+    const confirmMessage = `Are you sure you want to delete the topic "${currentProject.title}"?\n\nThis will remove the topic and unlink it from any associated tasks.\n\nYou will be redirected to the Topics page.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            alert('Topic deleted successfully!');
+            window.location.href = '/projects';
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Failed to delete topic');
+        }
+    } catch (error) {
+        console.error('Error deleting topic:', error);
+        alert('Failed to delete topic');
+    }
 }
 
 function openEditProjectModal() {

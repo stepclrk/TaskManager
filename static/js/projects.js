@@ -143,10 +143,14 @@ function renderTopics() {
                     </div>
                 </div>
                 
-                <div style="position: absolute; top: 20px; right: 20px;">
+                <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 5px;">
                     <button class="btn btn-small" onclick="event.stopPropagation(); editTopic('${topic.id}')" 
                             style="padding: 5px 10px; font-size: 0.85em;">
                         Edit
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" 
+                            style="padding: 5px 10px; font-size: 0.85em; background: #e74c3c; color: white; border: none;">
+                        Delete
                     </button>
                 </div>
             </div>
@@ -190,6 +194,37 @@ function closeModal() {
 
 function editTopic(topicId) {
     openModal(topicId);
+}
+
+async function deleteTopic(topicId) {
+    const topic = allTopics.find(t => t.id === topicId);
+    if (!topic) return;
+    
+    const confirmMessage = `Are you sure you want to delete the topic "${topic.title}"?\n\nThis will remove the topic and unlink it from any associated tasks.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/projects/${topicId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('Topic deleted successfully!', 'success');
+            loadTopics(); // Reload the topics list
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Failed to delete topic', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting topic:', error);
+        showNotification('Failed to delete topic', 'error');
+    }
 }
 
 async function handleSubmit(event) {

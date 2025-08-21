@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('addTaskBtn').addEventListener('click', showAddTaskModal);
     document.getElementById('editObjectiveBtn').addEventListener('click', showEditObjectiveModal);
+    document.getElementById('deleteObjectiveBtn').addEventListener('click', deleteCurrentObjective);
     document.getElementById('viewFilter').addEventListener('change', filterTasks);
     document.getElementById('taskForm').addEventListener('submit', saveTask);
     document.getElementById('editObjectiveForm').addEventListener('submit', saveObjective);
@@ -285,6 +286,36 @@ async function removeTaskFromObjective(taskId) {
     } catch (error) {
         console.error('Error removing task from objective:', error);
         alert('Error removing task from objective');
+    }
+}
+
+async function deleteCurrentObjective() {
+    if (!currentObjective) return;
+    
+    const confirmMessage = `Are you sure you want to delete the objective "${currentObjective.title}"?\n\nThis will remove the objective and unlink it from any associated tasks.\n\nYou will be redirected to the Objectives page.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/topics/${currentObjective.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            alert('Objective deleted successfully!');
+            window.location.href = '/objectives';
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Failed to delete objective');
+        }
+    } catch (error) {
+        console.error('Error deleting objective:', error);
+        alert('Failed to delete objective');
     }
 }
 

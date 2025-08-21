@@ -152,10 +152,14 @@ function renderObjectives() {
                     </div>
                 </div>
                 
-                <div style="position: absolute; top: 20px; right: 20px;">
+                <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 5px;">
                     <button class="btn btn-small" onclick="event.stopPropagation(); editObjective('${objective.id}')" 
                             style="padding: 5px 10px; font-size: 0.85em;">
                         Edit
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteObjective('${objective.id}')" 
+                            style="padding: 5px 10px; font-size: 0.85em; background: #e74c3c; color: white; border: none;">
+                        Delete
                     </button>
                 </div>
             </div>
@@ -243,6 +247,37 @@ function closeModal() {
 
 function editObjective(objectiveId) {
     openModal(objectiveId);
+}
+
+async function deleteObjective(objectiveId) {
+    const objective = allObjectives.find(o => o.id === objectiveId);
+    if (!objective) return;
+    
+    const confirmMessage = `Are you sure you want to delete the objective "${objective.title}"?\n\nThis will remove the objective and unlink it from any associated tasks.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/topics/${objectiveId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('Objective deleted successfully!', 'success');
+            loadObjectives(); // Reload the objectives list
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Failed to delete objective', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting objective:', error);
+        showNotification('Failed to delete objective', 'error');
+    }
 }
 
 async function handleSubmit(event) {

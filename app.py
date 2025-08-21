@@ -867,21 +867,7 @@ def update_objective(topic_id):
     
     return jsonify({'error': 'Objective not found'}), 404
 
-@app.route('/api/topics/<topic_id>', methods=['DELETE'])
-def delete_objective(topic_id):
-    objectives = load_objectives()
-    objectives = [o for o in objectives if o['id'] != topic_id]
-    save_objectives(objectives)
-    
-    # Note: We don't delete associated tasks, just remove the topic association
-    # This could be changed based on requirements
-    tasks = load_tasks()
-    for task in tasks:
-        if task.get('topic_id') == topic_id:
-            task.pop('topic_id', None)
-    save_tasks(tasks)
-    
-    return '', 204
+# DELETE endpoint moved below to avoid duplication
 
 @app.route('/api/topics/<topic_id>/tasks', methods=['GET'])
 def get_objective_tasks(topic_id):
@@ -901,6 +887,31 @@ def update_objective_notes(topic_id):
         
         save_objectives(objectives)
         return jsonify({'success': True})
+    
+    return jsonify({'error': 'Objective not found'}), 404
+
+@app.route('/api/topics/<topic_id>', methods=['DELETE'])
+def delete_objective(topic_id):
+    objectives = load_objectives()
+    objective_index = next((i for i, o in enumerate(objectives) if o['id'] == topic_id), None)
+    
+    if objective_index is not None:
+        # Remove the objective
+        deleted_objective = objectives.pop(objective_index)
+        save_objectives(objectives)
+        
+        # Remove objective association from tasks
+        tasks = load_tasks()
+        tasks_updated = False
+        for task in tasks:
+            if task.get('topic_id') == topic_id:
+                del task['topic_id']
+                tasks_updated = True
+        
+        if tasks_updated:
+            save_tasks(tasks)
+        
+        return jsonify({'success': True, 'deleted': deleted_objective})
     
     return jsonify({'error': 'Objective not found'}), 404
 
@@ -954,13 +965,7 @@ def update_project(project_id):
     
     return jsonify({'error': 'Project not found'}), 404
 
-@app.route('/api/projects/<project_id>', methods=['DELETE'])
-def delete_project(project_id):
-    projects = load_projects()
-    projects = [p for p in projects if p['id'] != project_id]
-    save_projects(projects)
-    
-    return jsonify({'success': True})
+# DELETE endpoint moved below to avoid duplication
 
 @app.route('/api/projects/<project_id>/tasks', methods=['GET'])
 def get_project_tasks(project_id):
@@ -980,6 +985,31 @@ def update_project_notes(project_id):
         
         save_projects(projects)
         return jsonify({'success': True})
+    
+    return jsonify({'error': 'Project not found'}), 404
+
+@app.route('/api/projects/<project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    projects = load_projects()
+    project_index = next((i for i, p in enumerate(projects) if p['id'] == project_id), None)
+    
+    if project_index is not None:
+        # Remove the project
+        deleted_project = projects.pop(project_index)
+        save_projects(projects)
+        
+        # Remove project association from tasks
+        tasks = load_tasks()
+        tasks_updated = False
+        for task in tasks:
+            if task.get('project_id') == project_id:
+                del task['project_id']
+                tasks_updated = True
+        
+        if tasks_updated:
+            save_tasks(tasks)
+        
+        return jsonify({'success': True, 'deleted': deleted_project})
     
     return jsonify({'error': 'Project not found'}), 404
 
