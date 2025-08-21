@@ -107,7 +107,7 @@
     "description": "dsfg",
     "category": "Development",
     "priority": "Low",
-    "follow_up_date": "",
+    "follow_up_date": "2025-08-22",
     "status": "Open",
     "assigned_to": "Andy",
     "tags": "",
@@ -121,6 +121,13 @@
         "field": "task",
         "old_value": null,
         "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-21T18:55:36.534330",
+        "action": "modified",
+        "field": "follow_up_date",
+        "old_value": "",
+        "new_value": "2025-08-22"
       }
     ],
     "comments": [],

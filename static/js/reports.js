@@ -1,22 +1,33 @@
 // Reports functionality
 let currentReportData = [];
 let allTasks = [];
+let allObjectives = [];
+let progressChart = null;
+let statusChart = null;
+let typeChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadInitialData();
     setupEventListeners();
+    setupTabSwitching();
 });
 
 async function loadInitialData() {
     try {
-        const response = await fetch('/api/tasks');
-        allTasks = await response.json();
+        // Load tasks
+        const tasksResponse = await fetch('/api/tasks');
+        allTasks = await tasksResponse.json();
+        
+        // Load objectives
+        const objectivesResponse = await fetch('/api/topics');
+        allObjectives = await objectivesResponse.json();
     } catch (error) {
-        console.error('Error loading tasks:', error);
+        console.error('Error loading data:', error);
     }
 }
 
 function setupEventListeners() {
+    // Task report listeners
     document.getElementById('reportType').addEventListener('change', handleReportTypeChange);
     document.getElementById('generateReportBtn').addEventListener('click', generateReport);
     document.getElementById('copyTableBtn').addEventListener('click', copyTableToClipboard);
@@ -24,6 +35,34 @@ function setupEventListeners() {
     document.getElementById('exportCsvBtn').addEventListener('click', exportToCSV);
     document.getElementById('printBtn').addEventListener('click', printReport);
     document.getElementById('doCopyBtn').addEventListener('click', copyTextToClipboard);
+    
+    // OKR report listeners
+    document.getElementById('generateOKRReportBtn').addEventListener('click', generateOKRReport);
+    document.getElementById('copyOKRReportBtn').addEventListener('click', copyOKRReport);
+    document.getElementById('exportOKRCSVBtn').addEventListener('click', exportOKRToCSV);
+    document.getElementById('printOKRBtn').addEventListener('click', printOKRReport);
+}
+
+function setupTabSwitching() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all tabs
+            tabButtons.forEach(b => {
+                b.classList.remove('active');
+                b.style.borderBottom = '3px solid transparent';
+            });
+            
+            // Add active class to clicked tab
+            this.classList.add('active');
+            this.style.borderBottom = '3px solid #3498db';
+            
+            // Show/hide content
+            const tabName = this.dataset.tab;
+            document.getElementById('tasksTab').style.display = tabName === 'tasks' ? 'block' : 'none';
+            document.getElementById('objectivesTab').style.display = tabName === 'objectives' ? 'block' : 'none';
+        });
+    });
 }
 
 function handleReportTypeChange() {
@@ -404,4 +443,408 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+// ============= OKR Reporting Functions =============
+
+async function generateOKRReport() {
+    // Get filter values
+    const period = document.getElementById('okrPeriod').value;
+    const type = document.getElementById('okrType').value;
+    const status = document.getElementById('okrStatus').value;
+    const owner = document.getElementById('okrOwner').value.toLowerCase();
+    
+    // Filter objectives
+    let filteredObjectives = allObjectives.filter(obj => {
+        if (period && obj.period !== period) return false;
+        if (type && obj.objective_type !== type) return false;
+        if (status && obj.status !== status) return false;
+        if (owner && (!obj.owner || !obj.owner.toLowerCase().includes(owner))) return false;
+        return true;
+    });
+    
+    // Calculate statistics
+    const stats = calculateOKRStatistics(filteredObjectives);
+    
+    // Display summary dashboard
+    displayOKRSummary(stats);
+    
+    // Create charts
+    createOKRCharts(filteredObjectives);
+    
+    // Generate detailed report
+    generateDetailedOKRReport(filteredObjectives);
+    
+    // Show sections
+    document.getElementById('okrSummaryDashboard').style.display = 'block';
+    document.getElementById('okrDetailedReport').style.display = 'block';
+    document.getElementById('okrReportActions').style.display = 'flex';
+}
+
+function calculateOKRStatistics(objectives) {
+    const stats = {
+        totalObjectives: objectives.length,
+        avgOKRScore: 0,
+        completedKRs: 0,
+        totalKRs: 0,
+        avgConfidence: 0,
+        byStatus: {},
+        byType: {},
+        progressRanges: {
+            '0-25%': 0,
+            '26-50%': 0,
+            '51-75%': 0,
+            '76-100%': 0
+        }
+    };
+    
+    let totalScore = 0;
+    let totalConfidence = 0;
+    
+    objectives.forEach(obj => {
+        // Calculate OKR score
+        const score = obj.okr_score || 0;
+        totalScore += score;
+        
+        // Confidence
+        totalConfidence += obj.confidence || 0;
+        
+        // Status counts
+        stats.byStatus[obj.status || 'Active'] = (stats.byStatus[obj.status || 'Active'] || 0) + 1;
+        
+        // Type counts
+        stats.byType[obj.objective_type || 'aspirational'] = (stats.byType[obj.objective_type || 'aspirational'] || 0) + 1;
+        
+        // Progress range
+        const progressPercent = score * 100;
+        if (progressPercent <= 25) stats.progressRanges['0-25%']++;
+        else if (progressPercent <= 50) stats.progressRanges['26-50%']++;
+        else if (progressPercent <= 75) stats.progressRanges['51-75%']++;
+        else stats.progressRanges['76-100%']++;
+        
+        // Key Results
+        if (obj.key_results) {
+            stats.totalKRs += obj.key_results.length;
+            stats.completedKRs += obj.key_results.filter(kr => kr.progress >= 1).length;
+        }
+    });
+    
+    stats.avgOKRScore = objectives.length > 0 ? totalScore / objectives.length : 0;
+    stats.avgConfidence = objectives.length > 0 ? totalConfidence / objectives.length : 0;
+    
+    return stats;
+}
+
+function displayOKRSummary(stats) {
+    document.getElementById('totalObjectives').textContent = stats.totalObjectives;
+    document.getElementById('avgOKRScore').textContent = Math.round(stats.avgOKRScore * 100) + '%';
+    document.getElementById('completedKRs').textContent = stats.completedKRs + '/' + stats.totalKRs;
+    document.getElementById('avgConfidence').textContent = Math.round(stats.avgConfidence * 100) + '%';
+}
+
+function createOKRCharts(objectives) {
+    // Destroy existing charts if any
+    if (progressChart) progressChart.destroy();
+    if (statusChart) statusChart.destroy();
+    if (typeChart) typeChart.destroy();
+    
+    // Progress Distribution Chart
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    const progressData = {
+        '0-25%': 0,
+        '26-50%': 0,
+        '51-75%': 0,
+        '76-100%': 0
+    };
+    
+    objectives.forEach(obj => {
+        const score = (obj.okr_score || 0) * 100;
+        if (score <= 25) progressData['0-25%']++;
+        else if (score <= 50) progressData['26-50%']++;
+        else if (score <= 75) progressData['51-75%']++;
+        else progressData['76-100%']++;
+    });
+    
+    progressChart = new Chart(progressCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(progressData),
+            datasets: [{
+                data: Object.values(progressData),
+                backgroundColor: ['#e74c3c', '#f39c12', '#3498db', '#27ae60'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 8,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed + ' objectives';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Status Breakdown Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const statusData = {};
+    
+    objectives.forEach(obj => {
+        const status = obj.status || 'Active';
+        statusData[status] = (statusData[status] || 0) + 1;
+    });
+    
+    statusChart = new Chart(statusCtx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{
+                label: 'Count',
+                data: Object.values(statusData),
+                backgroundColor: '#3498db',
+                borderColor: '#2980b9',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    
+    // Type Distribution Chart
+    const typeCtx = document.getElementById('typeChart').getContext('2d');
+    const typeData = {};
+    
+    objectives.forEach(obj => {
+        const type = obj.objective_type === 'committed' ? 'Committed' : 'Aspirational';
+        typeData[type] = (typeData[type] || 0) + 1;
+    });
+    
+    typeChart = new Chart(typeCtx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(typeData),
+            datasets: [{
+                data: Object.values(typeData),
+                backgroundColor: ['#9b59b6', '#3498db'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 8,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((context.parsed / total) * 100);
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function generateDetailedOKRReport(objectives) {
+    const reportContent = document.getElementById('okrReportContent');
+    
+    if (objectives.length === 0) {
+        reportContent.innerHTML = '<p>No objectives match the selected filters.</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    objectives.forEach(obj => {
+        const score = Math.round((obj.okr_score || 0) * 100);
+        const scoreClass = score < 30 ? 'danger' : score < 70 ? 'warning' : 'success';
+        const confidence = Math.round((obj.confidence || 0) * 100);
+        
+        html += `
+            <div style="background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); page-break-inside: avoid;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                    <div>
+                        <h4 style="margin: 0; color: #2c3e50;">${escapeHtml(obj.title)}</h4>
+                        <div style="margin-top: 5px;">
+                            <span style="display: inline-block; padding: 3px 8px; background: ${obj.objective_type === 'committed' ? '#e3f2fd' : '#f3e5f5'}; 
+                                         color: ${obj.objective_type === 'committed' ? '#1976d2' : '#7b1fa2'}; border-radius: 3px; font-size: 0.85em;">
+                                ${obj.objective_type === 'committed' ? 'Committed' : 'Aspirational'}
+                            </span>
+                            <span style="margin-left: 10px; color: #666;">${obj.period || 'Q1'}</span>
+                            <span style="margin-left: 10px; color: #666;">Status: ${obj.status || 'Active'}</span>
+                            ${obj.owner ? `<span style="margin-left: 10px; color: #666;">Owner: ${escapeHtml(obj.owner)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 1.5em; font-weight: bold; color: ${scoreClass === 'danger' ? '#e74c3c' : scoreClass === 'warning' ? '#f39c12' : '#27ae60'};">
+                            ${score}%
+                        </div>
+                        <div style="font-size: 0.85em; color: #999;">OKR Score</div>
+                        <div style="margin-top: 5px; font-size: 0.85em; color: #666;">Confidence: ${confidence}%</div>
+                    </div>
+                </div>
+                
+                ${obj.description ? `
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <strong>Why this matters:</strong> ${escapeHtml(obj.description)}
+                    </div>
+                ` : ''}
+                
+                ${obj.key_results && obj.key_results.length > 0 ? `
+                    <div style="margin-top: 15px;">
+                        <h5 style="margin-bottom: 10px; color: #2c3e50;">Key Results</h5>
+                        ${obj.key_results.map(kr => {
+                            const krProgress = Math.round((kr.progress || 0) * 100);
+                            const krClass = krProgress < 30 ? 'danger' : krProgress < 70 ? 'warning' : 'success';
+                            
+                            return `
+                                <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="flex: 1;">
+                                            <div>${escapeHtml(kr.title)}</div>
+                                            <div style="margin-top: 5px; font-size: 0.85em; color: #666;">
+                                                Progress: ${kr.current_value || 0} / ${kr.target_value || 0} 
+                                                (Start: ${kr.start_value || 0})
+                                            </div>
+                                        </div>
+                                        <div style="min-width: 60px; text-align: right; font-weight: bold; 
+                                                    color: ${krClass === 'danger' ? '#e74c3c' : krClass === 'warning' ? '#f39c12' : '#27ae60'};">
+                                            ${krProgress}%
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 5px; background: #e0e0e0; height: 8px; border-radius: 4px;">
+                                        <div style="background: ${krClass === 'danger' ? '#e74c3c' : krClass === 'warning' ? '#f39c12' : '#27ae60'}; 
+                                                    height: 100%; width: ${krProgress}%; border-radius: 4px;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : '<div style="margin-top: 10px; color: #999;">No key results defined</div>'}
+                
+                ${obj.notes ? `
+                    <div style="margin-top: 15px; padding: 10px; background: #fffbf0; border-left: 3px solid #f39c12; border-radius: 3px;">
+                        <strong>Notes:</strong> ${escapeHtml(obj.notes)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    reportContent.innerHTML = html;
+}
+
+function copyOKRReport() {
+    const reportContent = document.getElementById('okrReportContent').innerText;
+    navigator.clipboard.writeText(reportContent).then(() => {
+        alert('Report copied to clipboard!');
+    }).catch(err => {
+        alert('Failed to copy report');
+    });
+}
+
+function exportOKRToCSV() {
+    const period = document.getElementById('okrPeriod').value;
+    const type = document.getElementById('okrType').value;
+    const status = document.getElementById('okrStatus').value;
+    const owner = document.getElementById('okrOwner').value.toLowerCase();
+    
+    // Filter objectives
+    let filteredObjectives = allObjectives.filter(obj => {
+        if (period && obj.period !== period) return false;
+        if (type && obj.objective_type !== type) return false;
+        if (status && obj.status !== status) return false;
+        if (owner && (!obj.owner || !obj.owner.toLowerCase().includes(owner))) return false;
+        return true;
+    });
+    
+    // Create CSV content
+    let csv = 'Objective,Type,Period,Status,Owner,OKR Score,Confidence,Key Results Count,Description\n';
+    
+    filteredObjectives.forEach(obj => {
+        const score = Math.round((obj.okr_score || 0) * 100);
+        const confidence = Math.round((obj.confidence || 0) * 100);
+        const krCount = obj.key_results ? obj.key_results.length : 0;
+        
+        csv += `"${obj.title || ''}",`;
+        csv += `"${obj.objective_type || 'aspirational'}",`;
+        csv += `"${obj.period || ''}",`;
+        csv += `"${obj.status || 'Active'}",`;
+        csv += `"${obj.owner || ''}",`;
+        csv += `${score}%,`;
+        csv += `${confidence}%,`;
+        csv += `${krCount},`;
+        csv += `"${obj.description || ''}"\n`;
+    });
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `okr_report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+}
+
+function printOKRReport() {
+    window.print();
 }
