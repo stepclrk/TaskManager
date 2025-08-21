@@ -1,5 +1,5 @@
 {
-  "summary": "Here is a brief executive summary of the open task:\n\nOpen Test (Priority: Low, Customer: someone)\n- This is a low priority task requested by the customer \"someone\".\n- The task involves conducting a test, but no further details are provided about the specific nature of the test.\n- Given the low priority, this task may not require immediate attention, but should be monitored and addressed as resources and time allow.",
-  "timestamp": "2025-08-21T17:41:12.921843",
+  "summary": "**Executive Summary:**\n\n**Progress:**\n- The current active objective is the \"Test Objective\", which has an annual commitment and a confidence level of 81%.\n- The key results for this objective have not been completed yet, with a current score of 0%.\n- There is 1 associated task under this objective.\n\n**Priorities:**\n- The sole open task is \"Something: dsfg\", which has a low priority and is associated with the \"Test Objective\".\n\n**Critical Items:**\n- The key results for the \"Test Objective\" have not been completed, which is a critical item that needs to be addressed to ensure the objective's success.",
+  "timestamp": "2025-08-21T18:53:28.591394",
   "include_completed_cancelled": false
 }

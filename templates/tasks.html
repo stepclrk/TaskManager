@@ -14,6 +14,7 @@
             <h1>Task Manager</h1>
             <ul class="nav-menu">
                 <li><a href="/">Dashboard</a></li>
+                <li><a href="/topics">Objectives</a></li>
                 <li><a href="/tasks" class="active">Tasks</a></li>
                 <li><a href="/calendar">Calendar</a></li>
                 <li><a href="/reports">Reports</a></li>
@@ -145,6 +146,13 @@
                         <div class="form-group">
                             <label for="assignedTo">Assigned To</label>
                             <input type="text" id="assignedTo">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="taskTopic">Objective</label>
+                            <select id="taskTopic">
+                                <option value="">No Objective</option>
+                            </select>
                         </div>
                         
                         <div class="form-group">

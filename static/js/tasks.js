@@ -1,6 +1,7 @@
 let allTasks = [];
 let currentTask = null;
 let config = {};
+let topics = [];
 window.hasApiKey = false;
 
 async function checkApiKey() {
@@ -34,6 +35,7 @@ async function checkApiKey() {
 document.addEventListener('DOMContentLoaded', function() {
     checkApiKey();
     loadConfig();
+    loadTopics();
     loadTasks().then(() => {
         // Check if we need to open a specific task
         const taskIdToOpen = sessionStorage.getItem('openTaskId');
@@ -41,6 +43,22 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionStorage.removeItem('openTaskId');
             setTimeout(() => {
                 editTask(taskIdToOpen);
+            }, 100);
+        }
+        
+        // Check if we need to create a new task for a topic
+        const newTaskTopicId = sessionStorage.getItem('newTaskTopicId');
+        if (newTaskTopicId) {
+            const topicTitle = sessionStorage.getItem('newTaskTopicTitle');
+            sessionStorage.removeItem('newTaskTopicId');
+            sessionStorage.removeItem('newTaskTopicTitle');
+            showAddTaskModal();
+            // Pre-select the topic
+            setTimeout(() => {
+                const topicSelect = document.getElementById('taskTopic');
+                if (topicSelect) {
+                    topicSelect.value = newTaskTopicId;
+                }
             }, 100);
         }
     });
@@ -128,6 +146,28 @@ async function loadConfig() {
     }
 }
 
+async function loadTopics() {
+    try {
+        const response = await fetch('/api/topics');
+        topics = await response.json();
+        populateTopicDropdown();
+    } catch (error) {
+        console.error('Error loading topics:', error);
+    }
+}
+
+function populateTopicDropdown() {
+    const topicSelect = document.getElementById('taskTopic');
+    if (!topicSelect) return;
+    
+    topicSelect.innerHTML = '<option value="">No Objective</option>';
+    topics.forEach(topic => {
+        if (topic.status !== 'Completed') {
+            topicSelect.innerHTML += `<option value="${topic.id}">${escapeHtml(topic.title)}</option>`;
+        }
+    });
+}
+
 function populateSelect(id, options) {
     const select = document.getElementById(id);
     select.innerHTML = options.map(opt => 
@@ -206,6 +246,13 @@ function renderListView(tasks, container) {
         const isUrgent = task.priority === 'Urgent';
         const className = isUrgent ? 'urgent' : (isOverdue ? 'overdue' : '');
         
+        // Find the topic name if task has a topic_id
+        let topicName = '';
+        if (task.topic_id && topics) {
+            const topic = topics.find(t => t.id === task.topic_id);
+            topicName = topic ? topic.title : '';
+        }
+        
         return `
             <div class="task-list-item ${className}">
                 <div class="task-info">
@@ -215,6 +262,7 @@ function renderListView(tasks, container) {
                         Status: ${task.status} | 
                         Priority: <span class="${task.priority === 'Urgent' ? 'priority-urgent' : (task.priority === 'High' ? 'priority-high' : '')}">${task.priority}</span> | 
                         Due: ${task.follow_up_date || 'No date'}
+                        ${topicName ? ` | <span style="color: #3498db;">📊 ${escapeHtml(topicName)}</span>` : ''}
                     </div>
                 </div>
                 <div class="task-actions">
@@ -263,6 +311,13 @@ function renderKanbanView(tasks, container, groupBy) {
                             const isUrgent = task.priority === 'Urgent';
                             const className = isUrgent ? 'urgent' : (isOverdue ? 'overdue' : '');
                             
+                            // Find the topic name if task has a topic_id
+                            let topicName = '';
+                            if (task.topic_id && topics) {
+                                const topic = topics.find(t => t.id === task.topic_id);
+                                topicName = topic ? topic.title : '';
+                            }
+                            
                             return `
                                 <div class="kanban-card ${className}" 
                                      draggable="true" 
@@ -272,6 +327,7 @@ function renderKanbanView(tasks, container, groupBy) {
                                     <div class="kanban-card-content" onclick="editTask('${task.id}')">
                                         <div class="kanban-card-title">${escapeHtml(task.title)}</div>
                                         <div class="kanban-card-customer">${escapeHtml(task.customer_name || 'No customer')}</div>
+                                        ${topicName ? `<div class="kanban-card-topic" style="color: #3498db; font-size: 0.85em; margin-top: 5px;">📊 ${escapeHtml(topicName)}</div>` : ''}
                                         ${task.tags ? `
                                             <div class="kanban-card-tags">
                                                 ${task.tags.split(',').map(tag => 
@@ -299,6 +355,7 @@ function showAddTaskModal() {
     currentTask = null;
     document.getElementById('modalTitle').textContent = 'Add Task';
     document.getElementById('taskForm').reset();
+    document.getElementById('taskTopic').value = ''; // Clear topic selection
     document.getElementById('taskModal').style.display = 'block';
     
     // Update AI button visibility
@@ -347,6 +404,7 @@ function editTask(taskId) {
     document.getElementById('status').value = currentTask.status || config.statuses[0];
     document.getElementById('assignedTo').value = currentTask.assigned_to || '';
     document.getElementById('tags').value = currentTask.tags || '';
+    document.getElementById('taskTopic').value = currentTask.topic_id || '';
     
     document.getElementById('taskModal').style.display = 'block';
 }
@@ -363,7 +421,8 @@ async function saveTask(e) {
         follow_up_date: document.getElementById('followUpDate').value,
         status: document.getElementById('status').value,
         assigned_to: document.getElementById('assignedTo').value,
-        tags: document.getElementById('tags').value
+        tags: document.getElementById('tags').value,
+        topic_id: document.getElementById('taskTopic').value || null
     };
     
     try {

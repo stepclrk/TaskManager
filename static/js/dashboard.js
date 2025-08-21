@@ -68,11 +68,13 @@ async function loadDashboard() {
         const response = await fetch('/api/tasks/summary');
         const summary = await response.json();
         
+        document.getElementById('activeObjectives').textContent = summary.active_objectives || 0;
         document.getElementById('totalTasks').textContent = summary.total;
         document.getElementById('openTasks').textContent = summary.open;
         document.getElementById('dueToday').textContent = summary.due_today;
         document.getElementById('overdueTasks').textContent = summary.overdue;
         
+        displayActiveObjectives(summary.objectives || []);
         displayUrgentTasks(summary.urgent);
         displayUpcomingTasks(summary.upcoming);
         displayCustomerTasks(summary.by_customer);
@@ -370,6 +372,82 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+function displayActiveObjectives(objectives) {
+    const container = document.getElementById('activeObjectivesList');
+    
+    if (!objectives || objectives.length === 0) {
+        container.innerHTML = '<p class="empty-message">No active objectives</p>';
+        return;
+    }
+    
+    container.innerHTML = objectives.map(obj => {
+        const scorePercent = Math.round((obj.okr_score || 0) * 100);
+        const confidencePercent = Math.round((obj.confidence || 0.5) * 100);
+        const scoreClass = scorePercent < 30 ? 'danger' : scorePercent < 70 ? 'warning' : 'success';
+        
+        return `
+            <div class="objective-item clickable" onclick="window.location.href='/topics/${obj.id}'" 
+                 style="padding: 12px; margin-bottom: 10px; border-left: 3px solid ${scoreClass === 'danger' ? '#e74c3c' : scoreClass === 'warning' ? '#f39c12' : '#27ae60'}; 
+                        background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                 onmouseover="this.style.background='#e9ecef'" 
+                 onmouseout="this.style.background='#f8f9fa'">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
+                            ${escapeHtml(obj.title)}
+                        </div>
+                        <div style="font-size: 0.85em; color: #666;">
+                            <span style="display: inline-block; padding: 2px 6px; background: ${obj.type === 'committed' ? '#e3f2fd' : '#f3e5f5'}; 
+                                         color: ${obj.type === 'committed' ? '#1976d2' : '#7b1fa2'}; border-radius: 3px; margin-right: 8px;">
+                                ${obj.type === 'committed' ? 'Committed' : 'Aspirational'}
+                            </span>
+                            <span>${obj.period}</span>
+                            ${obj.target_date ? ` • Due: ${obj.target_date}` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align: right; min-width: 80px;">
+                        <div style="font-size: 1.2em; font-weight: bold; color: ${scoreClass === 'danger' ? '#e74c3c' : scoreClass === 'warning' ? '#f39c12' : '#27ae60'};">
+                            ${scorePercent}%
+                        </div>
+                        <div style="font-size: 0.75em; color: #999;">OKR Score</div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 10px;">
+                    <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div style="font-size: 0.75em; color: #999;">Key Results</div>
+                        <div style="font-weight: 600; color: #2c3e50;">
+                            ${obj.key_results_completed}/${obj.key_results_count}
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div style="font-size: 0.75em; color: #999;">Tasks</div>
+                        <div style="font-weight: 600; color: #2c3e50;">
+                            ${obj.active_tasks}/${obj.total_tasks}
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div style="font-size: 0.75em; color: #999;">Confidence</div>
+                        <div style="font-weight: 600; color: #2c3e50;">
+                            ${confidencePercent}%
+                        </div>
+                    </div>
+                </div>
+                
+                ${obj.key_results_count > 0 ? `
+                    <div style="margin-top: 10px;">
+                        <div style="background: #e0e0e0; height: 6px; border-radius: 3px; overflow: hidden;">
+                            <div style="background: linear-gradient(90deg, ${scoreClass === 'danger' ? '#e74c3c' : scoreClass === 'warning' ? '#f39c12' : '#27ae60'}, 
+                                        ${scoreClass === 'danger' ? '#c0392b' : scoreClass === 'warning' ? '#e67e22' : '#229954'}); 
+                                        height: 100%; width: ${scorePercent}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 function openTask(taskId) {

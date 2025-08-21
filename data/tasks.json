@@ -33,20 +33,90 @@
     "blocks": []
   },
   {
-    "title": "open Test",
-    "customer_name": "someone",
-    "description": "",
+    "title": "vcbn",
+    "customer_name": "cvbn",
+    "description": "cvbncvbn",
+    "category": "Development",
+    "priority": "Low",
+    "follow_up_date": "",
+    "status": "Completed",
+    "assigned_to": "",
+    "tags": "",
+    "id": "42fbe444-420d-4e1a-ba1e-c113be5f774f",
+    "created_date": "2025-08-21T18:09:01.151082",
+    "history": [
+      {
+        "timestamp": "2025-08-21T18:09:01.151089",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-21T18:12:34.775744",
+        "action": "modified",
+        "field": "topic_id",
+        "old_value": null,
+        "new_value": "29a08eb4-e939-4a0a-ad5a-5b35a6f86888"
+      },
+      {
+        "timestamp": "2025-08-21T18:33:51.934380",
+        "action": "modified",
+        "field": "title",
+        "old_value": "topic task",
+        "new_value": "vcbn"
+      },
+      {
+        "timestamp": "2025-08-21T18:33:51.934390",
+        "action": "modified",
+        "field": "customer_name",
+        "old_value": "someone",
+        "new_value": "cvbn"
+      },
+      {
+        "timestamp": "2025-08-21T18:33:51.934392",
+        "action": "modified",
+        "field": "description",
+        "old_value": "",
+        "new_value": "cvbncvbn"
+      },
+      {
+        "timestamp": "2025-08-21T18:33:51.934395",
+        "action": "modified",
+        "field": "assigned_to",
+        "old_value": "Andy",
+        "new_value": ""
+      },
+      {
+        "timestamp": "2025-08-21T18:39:59.622635",
+        "action": "modified",
+        "field": "status",
+        "old_value": "Open",
+        "new_value": "Completed"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": [],
+    "topic_id": "29a08eb4-e939-4a0a-ad5a-5b35a6f86888"
+  },
+  {
+    "title": "Something",
+    "customer_name": "sdg",
+    "description": "dsfg",
     "category": "Development",
     "priority": "Low",
     "follow_up_date": "",
     "status": "Open",
     "assigned_to": "Andy",
     "tags": "",
-    "id": "1e747ee0-b6a1-4f8d-818c-5be1c3177741",
-    "created_date": "2025-08-21T17:29:58.064299",
+    "topic_id": "29a08eb4-e939-4a0a-ad5a-5b35a6f86888",
+    "id": "d74bce11-c56e-4fa6-a559-2e67db74b1ef",
+    "created_date": "2025-08-21T18:33:32.195706",
     "history": [
       {
-        "timestamp": "2025-08-21T17:29:58.064320",
+        "timestamp": "2025-08-21T18:33:32.195711",
         "action": "created",
         "field": "task",
         "old_value": null,

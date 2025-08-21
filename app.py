@@ -22,6 +22,7 @@ TEMPLATES_FILE = 'data/templates.json'
 ATTACHMENTS_DIR = 'data/attachments'
 DASHBOARD_LAYOUTS_FILE = 'data/dashboard_layouts.json'
 AI_SUMMARY_CACHE_FILE = 'data/ai_summary_cache.json'
+TOPICS_FILE = 'data/objectives.json'
 
 def load_tasks():
     if os.path.exists(DATA_FILE):
@@ -115,6 +116,17 @@ def save_ai_summary_cache(summary, include_completed_cancelled=False):
     }
     with open(AI_SUMMARY_CACHE_FILE, 'w') as f:
         json.dump(cache_data, f, indent=2)
+
+def load_topics():
+    if os.path.exists(TOPICS_FILE):
+        with open(TOPICS_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def save_topics(topics):
+    os.makedirs('data', exist_ok=True)
+    with open(TOPICS_FILE, 'w') as f:
+        json.dump(topics, f, indent=2, default=str)
 
 def load_dashboard_layouts():
     if os.path.exists(DASHBOARD_LAYOUTS_FILE):
@@ -262,6 +274,22 @@ def reports_page():
         import traceback
         return f"<pre>Error loading reports page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
+@app.route('/topics')
+def topics_page():
+    try:
+        return render_template('topics.html')
+    except Exception as e:
+        import traceback
+        return f"<pre>Error loading topics page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+
+@app.route('/topics/<topic_id>')
+def topic_workspace(topic_id):
+    try:
+        return render_template('topic_workspace.html')
+    except Exception as e:
+        import traceback
+        return f"<pre>Error loading topic workspace:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     tasks = load_tasks()
@@ -370,11 +398,44 @@ def delete_task(task_id):
 @app.route('/api/tasks/summary', methods=['GET'])
 def get_summary():
     tasks = load_tasks()
+    topics = load_topics()  # Load objectives
     today = date.today().isoformat()
     
     # Filter out completed and cancelled tasks for active counts
     active_statuses = ['Completed', 'Cancelled']
     active_tasks = [t for t in tasks if t.get('status') not in active_statuses]
+    
+    # Get active objectives
+    active_objectives = [t for t in topics if t.get('status') not in ['Completed']]
+    
+    # Process objectives for dashboard display
+    objectives_with_stats = []
+    for obj in active_objectives:
+        # Calculate OKR score
+        okr_score = 0
+        if obj.get('key_results'):
+            total_progress = sum(kr.get('progress', 0) for kr in obj['key_results'])
+            okr_score = total_progress / len(obj['key_results']) if obj['key_results'] else 0
+        
+        # Count associated tasks
+        obj_tasks = [t for t in active_tasks if t.get('topic_id') == obj['id']]
+        completed_obj_tasks = [t for t in tasks if t.get('topic_id') == obj['id'] and t.get('status') == 'Completed']
+        
+        objectives_with_stats.append({
+            'id': obj.get('id'),
+            'title': obj.get('title'),
+            'type': obj.get('objective_type', 'aspirational'),
+            'period': obj.get('period', 'Q1'),
+            'confidence': obj.get('confidence', 0.5),
+            'okr_score': okr_score,
+            'key_results_count': len(obj.get('key_results', [])),
+            'key_results_completed': sum(1 for kr in obj.get('key_results', []) if kr.get('progress', 0) >= 1),
+            'total_tasks': len(obj_tasks) + len(completed_obj_tasks),
+            'active_tasks': len(obj_tasks),
+            'completed_tasks': len(completed_obj_tasks),
+            'status': obj.get('status', 'Active'),
+            'target_date': obj.get('target_date')
+        })
     
     summary = {
         'total': len(active_tasks),  # Only count active tasks
@@ -383,7 +444,9 @@ def get_summary():
         'overdue': len([t for t in active_tasks if t.get('follow_up_date') and t.get('follow_up_date') < today]),
         'urgent': [t for t in active_tasks if t.get('priority') == 'Urgent'],
         'by_customer': {},
-        'upcoming': []
+        'upcoming': [],
+        'active_objectives': len(active_objectives),
+        'objectives': objectives_with_stats[:5]  # Top 5 objectives for dashboard
     }
     
     # Only show active tasks grouped by customer
@@ -468,35 +531,80 @@ def ai_summary():
                 })
     
     tasks = load_tasks()
+    topics = load_topics()  # Load objectives
     
     # Filter tasks based on the parameter
     if include_completed_cancelled:
         open_tasks = tasks
+        active_objectives = topics
     else:
         open_tasks = [t for t in tasks if t.get('status') not in ['Completed', 'Cancelled']]
+        active_objectives = [t for t in topics if t.get('status') not in ['Completed']]
     
-    if not open_tasks:
-        summary_text = 'No active tasks to summarize.'
+    if not open_tasks and not active_objectives:
+        summary_text = 'No active tasks or objectives to summarize.'
         save_ai_summary_cache(summary_text, include_completed_cancelled)
         return jsonify({'summary': summary_text})
     
-    task_descriptions = []
-    for task in open_tasks[:20]:
-        task_info = f"- {task.get('title', 'Untitled')}: {task.get('description', 'No description')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})"
-        
-        # Add comments if they exist
-        if task.get('comments') and len(task['comments']) > 0:
-            recent_comments = task['comments'][-2:]  # Get last 2 comments
-            comments_text = '; '.join([f"Comment: {c.get('text', '')}" for c in recent_comments])
-            task_info += f" [{comments_text}]"
-        
-        # Add dependencies info if they exist
-        if task.get('dependencies') and len(task['dependencies']) > 0:
-            task_info += f" (Depends on {len(task['dependencies'])} other tasks)"
-        
-        task_descriptions.append(task_info)
+    # Build objectives summary
+    objectives_text = []
+    if active_objectives:
+        objectives_text.append("\n**Active Objectives (OKRs):**")
+        for obj in active_objectives[:10]:
+            obj_info = f"- {obj.get('title', 'Untitled')} ({obj.get('objective_type', 'aspirational').title()}, {obj.get('period', 'Q1')})"
+            
+            # Add confidence and progress
+            if obj.get('confidence'):
+                obj_info += f" - Confidence: {int(obj.get('confidence', 0.5) * 100)}%"
+            
+            # Add key results summary
+            if obj.get('key_results'):
+                completed_krs = sum(1 for kr in obj['key_results'] if kr.get('progress', 0) >= 1)
+                total_krs = len(obj['key_results'])
+                obj_info += f" - Key Results: {completed_krs}/{total_krs} completed"
+                
+                # Calculate overall OKR score
+                if total_krs > 0:
+                    total_progress = sum(kr.get('progress', 0) for kr in obj['key_results'])
+                    okr_score = total_progress / total_krs
+                    obj_info += f" (Score: {int(okr_score * 100)}%)"
+            
+            # Count associated tasks
+            obj_tasks = [t for t in open_tasks if t.get('topic_id') == obj['id']]
+            if obj_tasks:
+                obj_info += f" - {len(obj_tasks)} associated tasks"
+            
+            objectives_text.append(obj_info)
     
-    prompt = f"Please provide a brief executive summary of these open tasks:\n\n" + "\n".join(task_descriptions)
+    # Build tasks summary
+    task_descriptions = []
+    if open_tasks:
+        task_descriptions.append("\n**Open Tasks:**")
+        for task in open_tasks[:20]:
+            task_info = f"- {task.get('title', 'Untitled')}: {task.get('description', 'No description')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})"
+            
+            # Add objective association
+            if task.get('topic_id'):
+                obj = next((t for t in topics if t['id'] == task['topic_id']), None)
+                if obj:
+                    task_info += f" [Objective: {obj['title']}]"
+            
+            # Add comments if they exist
+            if task.get('comments') and len(task['comments']) > 0:
+                recent_comments = task['comments'][-2:]  # Get last 2 comments
+                comments_text = '; '.join([f"Comment: {c.get('text', '')}" for c in recent_comments])
+                task_info += f" [{comments_text}]"
+            
+            # Add dependencies info if they exist
+            if task.get('dependencies') and len(task['dependencies']) > 0:
+                task_info += f" (Depends on {len(task['dependencies'])} other tasks)"
+            
+            task_descriptions.append(task_info)
+    
+    # Combine objectives and tasks for the prompt
+    all_descriptions = objectives_text + task_descriptions
+    
+    prompt = f"Please provide a brief executive summary of the current objectives (OKRs) and tasks. Focus on progress, priorities, and any critical items:\n\n" + "\n".join(all_descriptions)
     
     result = call_ai_api(settings, prompt, task_type='summarization', max_tokens=500)
     
@@ -650,6 +758,133 @@ def delete_template(template_identifier):
     ]
     save_templates(templates_data)
     return '', 204
+
+# Topics API endpoints
+@app.route('/api/topics', methods=['GET'])
+def get_topics():
+    topics = load_topics()
+    return jsonify(topics)
+
+@app.route('/api/topics', methods=['POST'])
+def create_topic():
+    topic = request.json
+    topic['id'] = str(uuid.uuid4())
+    topic['created_at'] = datetime.now().isoformat()
+    topic['updated_at'] = datetime.now().isoformat()
+    
+    # Set default status if not provided
+    if 'status' not in topic:
+        topic['status'] = 'Active'
+    
+    # Initialize key results if not provided
+    if 'key_results' not in topic:
+        topic['key_results'] = []
+    else:
+        # Add IDs to key results if not present
+        for kr in topic['key_results']:
+            if 'id' not in kr:
+                kr['id'] = str(uuid.uuid4())
+            if 'progress' not in kr:
+                kr['progress'] = 0
+            if 'status' not in kr:
+                kr['status'] = 'Not Started'
+    
+    # OKR specific fields
+    if 'objective_type' not in topic:
+        topic['objective_type'] = 'aspirational'  # or 'committed'
+    if 'confidence' not in topic:
+        topic['confidence'] = 0.5  # 50% confidence by default
+    if 'period' not in topic:
+        topic['period'] = 'Q1'  # Default quarter
+    
+    topics = load_topics()
+    topics.append(topic)
+    save_topics(topics)
+    return jsonify(topic), 201
+
+@app.route('/api/topics/<topic_id>', methods=['GET'])
+def get_topic(topic_id):
+    topics = load_topics()
+    topic = next((t for t in topics if t['id'] == topic_id), None)
+    if topic:
+        # Get tasks associated with this topic
+        tasks = load_tasks()
+        topic_tasks = [t for t in tasks if t.get('topic_id') == topic_id]
+        topic['tasks'] = topic_tasks
+        topic['task_count'] = len(topic_tasks)
+        topic['open_tasks'] = len([t for t in topic_tasks if t.get('status') not in ['Completed', 'Cancelled']])
+        return jsonify(topic)
+    return jsonify({'error': 'Topic not found'}), 404
+
+@app.route('/api/topics/<topic_id>', methods=['PUT'])
+def update_topic(topic_id):
+    topics = load_topics()
+    topic_index = next((i for i, t in enumerate(topics) if t['id'] == topic_id), None)
+    
+    if topic_index is not None:
+        updated_topic = request.json
+        updated_topic['id'] = topic_id
+        updated_topic['updated_at'] = datetime.now().isoformat()
+        
+        # Ensure key results have IDs
+        if 'key_results' in updated_topic:
+            for kr in updated_topic['key_results']:
+                if 'id' not in kr:
+                    kr['id'] = str(uuid.uuid4())
+                if 'progress' not in kr:
+                    kr['progress'] = 0
+                if 'status' not in kr:
+                    kr['status'] = 'Not Started'
+        
+        # Calculate overall OKR score based on key results
+        if 'key_results' in updated_topic and len(updated_topic['key_results']) > 0:
+            total_progress = sum(kr.get('progress', 0) for kr in updated_topic['key_results'])
+            updated_topic['okr_score'] = total_progress / len(updated_topic['key_results'])
+        else:
+            updated_topic['okr_score'] = 0
+        
+        topics[topic_index] = updated_topic
+        save_topics(topics)
+        return jsonify(updated_topic)
+    
+    return jsonify({'error': 'Topic not found'}), 404
+
+@app.route('/api/topics/<topic_id>', methods=['DELETE'])
+def delete_topic(topic_id):
+    topics = load_topics()
+    topics = [t for t in topics if t['id'] != topic_id]
+    save_topics(topics)
+    
+    # Note: We don't delete associated tasks, just remove the topic association
+    # This could be changed based on requirements
+    tasks = load_tasks()
+    for task in tasks:
+        if task.get('topic_id') == topic_id:
+            task.pop('topic_id', None)
+    save_tasks(tasks)
+    
+    return '', 204
+
+@app.route('/api/topics/<topic_id>/tasks', methods=['GET'])
+def get_topic_tasks(topic_id):
+    tasks = load_tasks()
+    topic_tasks = [t for t in tasks if t.get('topic_id') == topic_id]
+    return jsonify(topic_tasks)
+
+@app.route('/api/topics/<topic_id>/notes', methods=['PUT'])
+def update_topic_notes(topic_id):
+    topics = load_topics()
+    topic_index = next((i for i, t in enumerate(topics) if t['id'] == topic_id), None)
+    
+    if topic_index is not None:
+        notes_data = request.json
+        topics[topic_index]['notes'] = notes_data.get('notes', '')
+        topics[topic_index]['updated_at'] = datetime.now().isoformat()
+        
+        save_topics(topics)
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Topic not found'}), 404
 
 # Comments endpoints
 @app.route('/api/tasks/<task_id>/comments', methods=['POST'])
@@ -886,6 +1121,103 @@ def enhance_text():
         return jsonify({'enhanced_text': result['text']})
     else:
         return jsonify({'error': result.get('error', 'Unknown error occurred')}), 500
+
+@app.route('/api/ai/enhance-objective', methods=['POST'])
+def enhance_objective():
+    """Enhance an OKR objective to be more ambitious and clear"""
+    settings = load_settings()
+    
+    if not settings.get('api_key'):
+        return jsonify({'error': 'API key not configured'}), 400
+    
+    data = request.json
+    current_text = data.get('text', '')
+    objective_type = data.get('type', 'aspirational')
+    period = data.get('period', 'Q1')
+    
+    if not current_text:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    # Build prompt for enhancing objective
+    prompt = f"""Transform this objective into a clear, ambitious OKR objective.
+
+Current objective: {current_text}
+Type: {objective_type} ({"must achieve" if objective_type == "committed" else "stretch goal"})
+Period: {period}
+
+Requirements:
+- Make it qualitative and inspirational
+- Make it ambitious but achievable within the period
+- Keep it concise (one sentence)
+- Start with an action verb
+- Focus on outcomes, not activities
+- Make it memorable and motivating
+
+Return ONLY the enhanced objective text, nothing else."""
+    
+    result = call_ai_api(settings, prompt, max_tokens=100)
+    
+    if result['success']:
+        return jsonify({'enhanced_text': result['text'].strip()})
+    else:
+        return jsonify({'error': result.get('error', 'Failed to enhance objective')}), 500
+
+@app.route('/api/ai/enhance-why-matters', methods=['POST'])
+def enhance_why_matters():
+    """Generate or enhance the 'why this matters' description for an OKR"""
+    settings = load_settings()
+    
+    if not settings.get('api_key'):
+        return jsonify({'error': 'API key not configured'}), 400
+    
+    data = request.json
+    objective = data.get('objective', '')
+    current_text = data.get('current_text', '')
+    objective_type = data.get('type', 'aspirational')
+    period = data.get('period', 'Q1')
+    
+    if not objective:
+        return jsonify({'error': 'No objective provided'}), 400
+    
+    # Build prompt
+    if current_text:
+        prompt = f"""Enhance this explanation of why an OKR objective matters.
+
+Objective: {objective}
+Current explanation: {current_text}
+Type: {objective_type}
+Period: {period}
+
+Make it more compelling by:
+- Clearly explaining the business impact
+- Highlighting benefits to customers/users
+- Connecting to larger strategic goals
+- Creating urgency and motivation
+- Being specific about outcomes
+
+Keep it to 2-3 sentences. Return ONLY the enhanced explanation."""
+    else:
+        prompt = f"""Explain why this OKR objective matters.
+
+Objective: {objective}
+Type: {objective_type}
+Period: {period}
+
+Write a compelling 2-3 sentence explanation that:
+- Clearly states the business impact
+- Highlights benefits to customers/users
+- Connects to strategic goals
+- Creates urgency and motivation
+- Is specific about expected outcomes
+
+Return ONLY the explanation text."""
+    
+    result = call_ai_api(settings, prompt, max_tokens=200)
+    
+    if result['success']:
+        return jsonify({'enhanced_text': result['text'].strip()})
+    else:
+        return jsonify({'error': result.get('error', 'Failed to enhance description')}), 500
 
 @app.route('/api/ai/task-summary/<task_id>', methods=['POST'])
 def task_summary(task_id):
