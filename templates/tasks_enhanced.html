@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Tasks</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/enhanced.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Task Manager</h1>
+            <ul class="nav-menu">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/tasks" class="active">Tasks</a></li>
+                <li><a href="/calendar">Calendar</a></li>
+                <li><a href="/settings">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="tasks-header">
+            <h2>Tasks</h2>
+            <div class="header-actions">
+                <button id="addTaskBtn" class="btn btn-primary">+ Add Task</button>
+                <button id="createFromTemplateBtn" class="btn btn-secondary">📋 From Template</button>
+                <button id="exportBtn" class="btn btn-secondary">Export</button>
+                <button id="importBtn" class="btn btn-secondary">Import</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search tasks...">
+            </div>
+            <div class="view-controls">
+                <label>View:</label>
+                <select id="viewType">
+                    <option value="list">List</option>
+                    <option value="kanban">Kanban</option>
+                </select>
+                <label>Group by:</label>
+                <select id="groupBy">
+                    <option value="status">Status</option>
+                    <option value="customer">Customer</option>
+                    <option value="category">Category</option>
+                    <option value="priority">Priority</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="tasksContainer" class="tasks-container">
+        </div>
+    </div>
+
+    <!-- Enhanced Task Modal with Tabs -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h3 id="modalTitle">Add Task</h3>
+            
+            <!-- Template Selection -->
+            <div id="templateSelector" class="template-selector">
+                <label>Start from template:</label>
+                <select id="templateSelect">
+                    <option value="">-- Select Template --</option>
+                </select>
+                <button type="button" id="applyTemplateBtn" class="btn btn-small">Apply</button>
+            </div>
+            
+            <!-- Similar Tasks Warning -->
+            <div id="similarTasksWarning" class="similar-tasks-warning" style="display: none;">
+                <h4>⚠️ Similar tasks found:</h4>
+                <div id="similarTasksList"></div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="details">Details</button>
+                <button class="tab-btn" data-tab="dependencies">Dependencies</button>
+                <button class="tab-btn" data-tab="comments">Comments <span id="commentCount" class="badge"></span></button>
+                <button class="tab-btn" data-tab="attachments">Attachments <span id="attachmentCount" class="badge"></span></button>
+                <button class="tab-btn" data-tab="history">History</button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Details Tab -->
+                <div id="detailsTab" class="tab-panel active">
+                    <form id="taskForm">
+                        <input type="hidden" id="taskId">
+                        
+                        <div class="form-group">
+                            <label for="title">Title *</label>
+                            <input type="text" id="title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="customerName">Customer Name</label>
+                            <input type="text" id="customerName">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">
+                                Description
+                                <button type="button" id="enhanceTextBtn" class="btn btn-small ai-btn">✨ AI Enhance</button>
+                            </label>
+                            <div id="descriptionEditor" class="rich-editor"></div>
+                            <input type="hidden" id="description">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category"></select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority"></select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="followUpDate">Follow-up Date</label>
+                                <input type="date" id="followUpDate">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="status">Status</label>
+                                <select id="status"></select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="assignedTo">Assigned To</label>
+                            <input type="text" id="assignedTo">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tags">Tags (comma-separated)</label>
+                            <input type="text" id="tags" placeholder="e.g., frontend, api, urgent">
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Dependencies Tab -->
+                <div id="dependenciesTab" class="tab-panel">
+                    <div class="dependencies-section">
+                        <h4>This task depends on:</h4>
+                        <div id="dependenciesList" class="deps-list"></div>
+                        <button type="button" id="addDependencyBtn" class="btn btn-small">+ Add Dependency</button>
+                    </div>
+                    
+                    <div class="dependencies-section">
+                        <h4>Tasks blocked by this:</h4>
+                        <div id="blocksList" class="deps-list"></div>
+                    </div>
+                </div>
+                
+                <!-- Comments Tab -->
+                <div id="commentsTab" class="tab-panel">
+                    <div id="commentsContainer" class="comments-container"></div>
+                    <div class="add-comment">
+                        <textarea id="newComment" placeholder="Add a comment..."></textarea>
+                        <button type="button" id="addCommentBtn" class="btn btn-primary">Post Comment</button>
+                    </div>
+                </div>
+                
+                <!-- Attachments Tab -->
+                <div id="attachmentsTab" class="tab-panel">
+                    <div id="attachmentsList" class="attachments-list"></div>
+                    <div class="upload-area" id="uploadArea">
+                        <p>📎 Drag files here or click to upload</p>
+                        <input type="file" id="fileInput" multiple style="display: none;">
+                    </div>
+                </div>
+                
+                <!-- History Tab -->
+                <div id="historyTab" class="tab-panel">
+                    <div id="historyTimeline" class="history-timeline"></div>
+                </div>
+            </div>
+            
+            <!-- Modal Actions -->
+            <div class="form-actions">
+                <button type="button" id="generateFollowUpBtn" class="btn btn-info">Generate Follow-up</button>
+                <button type="submit" form="taskForm" class="btn btn-primary">Save Task</button>
+                <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Follow-up Modal (unchanged) -->
+    <div id="followUpModal" class="modal">
+        <div class="modal-content followup-modal">
+            <span class="close">&times;</span>
+            <h3>Generate Follow-up Message</h3>
+            
+            <div class="message-type-selector">
+                <label>Message Type:</label>
+                <div class="type-buttons">
+                    <button class="type-btn active" data-type="email" title="Email">
+                        <span class="icon">✉️</span>
+                        <span class="label">Email</span>
+                    </button>
+                    <button class="type-btn" data-type="messenger" title="Messenger/Chat">
+                        <span class="icon">💬</span>
+                        <span class="label">Chat</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="tone-selector">
+                <label>Select tone:</label>
+                <div class="tone-buttons">
+                    <button class="tone-btn" data-tone="polite" title="Professional and polite">
+                        <span class="tone-icon">🤝</span>
+                    </button>
+                    <button class="tone-btn" data-tone="casual" title="Friendly and casual">
+                        <span class="tone-icon">😊</span>
+                    </button>
+                    <button class="tone-btn" data-tone="funny" title="Humorous and light">
+                        <span class="tone-icon">😄</span>
+                    </button>
+                    <button class="tone-btn" data-tone="forceful" title="Firm and urgent">
+                        <span class="tone-icon">⚡</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="generatedMessage" class="generated-message"></div>
+            
+            <div class="form-actions">
+                <button id="copyMessageBtn" class="btn btn-primary">
+                    <span style="margin-right: 5px;">📋</span> Copy to Clipboard
+                </button>
+                <button id="regenerateBtn" class="btn btn-info">
+                    <span style="margin-right: 5px;">🔄</span> Regenerate
+                </button>
+                <button id="closeFollowUpBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dependency Picker Modal -->
+    <div id="dependencyModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Select Dependency</h3>
+            <div class="dependency-search">
+                <input type="text" id="depSearchInput" placeholder="Search tasks...">
+            </div>
+            <div id="depTaskList" class="dep-task-list"></div>
+            <div class="form-actions">
+                <button id="selectDepBtn" class="btn btn-primary">Add Selected</button>
+                <button id="cancelDepBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="/static/js/enhanced_features.js"></script>
+    <script src="/static/js/tasks.js"></script>
+    <script src="/static/js/tasks_enhanced.js"></script>
+</body>
+</html>

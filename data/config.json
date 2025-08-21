@@ -1,0 +1,30 @@
+{
+  "categories": [
+    "Development",
+    "Support",
+    "Bug",
+    "Feature",
+    "Documentation"
+  ],
+  "priorities": [
+    "Low",
+    "Medium",
+    "High",
+    "Urgent"
+  ],
+  "statuses": [
+    "Open",
+    "In Progress",
+    "Pending",
+    "Completed",
+    "Cancelled"
+  ],
+  "tags": [
+    "Frontend",
+    "Backend",
+    "Database",
+    "API",
+    "UI",
+    "Security"
+  ]
+}

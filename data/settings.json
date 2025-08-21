@@ -1,0 +1,5 @@
+{
+  "api_key": "sk-ant-test-key-12345",
+  "notifications_enabled": true,
+  "check_interval": 60
+}

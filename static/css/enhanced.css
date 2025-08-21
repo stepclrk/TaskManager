@@ -1,0 +1,463 @@
+/* Enhanced Features Styles */
+
+/* Large Modal for Task Details */
+.large-modal {
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+/* Template Selector */
+.template-selector {
+    background: #f0f8ff;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.template-selector select {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Similar Tasks Warning */
+.similar-tasks-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.similar-tasks-warning h4 {
+    margin: 0 0 0.5rem 0;
+    color: #856404;
+}
+
+.similar-task-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.similarity-score {
+    background: #ffc107;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-right: 1rem;
+}
+
+/* Modal Tabs */
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #666;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.tab-btn:hover {
+    color: #333;
+    background: #f8f9fa;
+}
+
+.tab-btn.active {
+    color: #3498db;
+    font-weight: 600;
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #3498db;
+}
+
+.badge {
+    background: #e74c3c;
+    color: white;
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+}
+
+.badge:empty {
+    display: none;
+}
+
+/* Tab Panels */
+.tab-content {
+    min-height: 400px;
+}
+
+.tab-panel {
+    display: none;
+    animation: fadeIn 0.3s;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Rich Text Editor */
+.rich-editor {
+    background: white;
+    min-height: 150px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.ai-btn {
+    float: right;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+.ai-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Dependencies */
+.dependencies-section {
+    margin-bottom: 2rem;
+}
+
+.dependencies-section h4 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.deps-list {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    min-height: 80px;
+    margin-bottom: 1rem;
+}
+
+.dependency-item, .blocks-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.dep-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-right: 1rem;
+}
+
+.dep-status.completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.dep-status.open {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.no-deps, .no-blocks, .no-comments, .no-attachments, .no-history {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+}
+
+/* Comments */
+.comments-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.comment {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.comment-author {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.comment-time {
+    color: #999;
+    font-size: 0.85rem;
+}
+
+.comment-text {
+    line-height: 1.5;
+}
+
+.add-comment {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 1rem;
+}
+
+.add-comment textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 0.5rem;
+}
+
+/* Attachments */
+.attachments-list {
+    margin-bottom: 1rem;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.attachment-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.attachment-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.attachment-size {
+    color: #999;
+    font-size: 0.85rem;
+    margin-right: 1rem;
+}
+
+.upload-area {
+    border: 2px dashed #3498db;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: #f0f8ff;
+}
+
+.upload-area:hover {
+    background: #e6f3ff;
+    border-color: #2980b9;
+}
+
+.upload-area.dragover {
+    background: #d4e6f1;
+    border-color: #2980b9;
+}
+
+/* History Timeline */
+.history-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.history-timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.history-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.history-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    background: #3498db;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #e0e0e0;
+}
+
+.history-content {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.history-time {
+    color: #999;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.history-action {
+    color: #333;
+}
+
+/* Calendar Styles */
+.calendar-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.view-buttons {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.view-buttons .btn {
+    border-radius: 0;
+}
+
+.view-buttons .btn:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.view-buttons .btn:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.overdue-event {
+    background: #fee !important;
+    border-color: #e74c3c !important;
+}
+
+/* Success Feedback */
+.success-feedback {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s;
+    z-index: 10000;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* Dependency Modal */
+.dep-task-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.dep-task-item {
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.dep-task-item:hover {
+    background: #f0f8ff;
+}
+
+.dep-task-item.selected {
+    background: #3498db;
+    color: white;
+}
+
+/* Template Management in Settings */
+.template-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    border-left: 3px solid #3498db;
+}
+
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.template-name {
+    font-weight: 600;
+}
+
+.template-preview {
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
+}
