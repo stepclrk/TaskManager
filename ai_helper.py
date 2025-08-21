@@ -82,6 +82,9 @@ def call_anthropic_api_direct(api_key: str, prompt: str, max_tokens: int = 500) 
     Direct API call to Anthropic without using the library
     """
     try:
+        # Clean the API key (remove any extra whitespace)
+        api_key = api_key.strip()
+        
         headers = {
             'anthropic-version': '2023-06-01',
             'x-api-key': api_key,
@@ -109,6 +112,14 @@ def call_anthropic_api_direct(api_key: str, prompt: str, max_tokens: int = 500) 
             if 'content' in result and len(result['content']) > 0:
                 return {'success': True, 'text': result['content'][0].get('text', '')}
             return {'success': False, 'error': 'Invalid response format'}
+        elif response.status_code == 401:
+            return {'success': False, 'error': 'Invalid API key. Please check your Claude API key in Settings.'}
+        elif response.status_code == 429:
+            return {'success': False, 'error': 'Rate limit exceeded. Please wait a moment and try again.'}
+        elif response.status_code == 400:
+            error_data = response.json()
+            error_msg = error_data.get('error', {}).get('message', 'Bad request')
+            return {'success': False, 'error': f'Request error: {error_msg}'}
         else:
             error_msg = f"API error: {response.status_code}"
             try:

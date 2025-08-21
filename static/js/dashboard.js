@@ -237,24 +237,8 @@ function formatAISummary(text) {
 }
 
 function checkAndGenerateSummary() {
-    const THREE_HOURS = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
-    const now = new Date();
-    
-    // Check if we need to generate summary
-    const shouldGenerate = !lastSummaryTime || 
-                          (now - lastSummaryTime) > THREE_HOURS;
-    
-    if (shouldGenerate) {
-        generateAISummary(false); // Auto-generate
-    } else {
-        // Load cached summary if available
-        const cachedSummary = localStorage.getItem('cachedSummary');
-        if (cachedSummary) {
-            const summaryDiv = document.getElementById('aiSummary');
-            summaryDiv.innerHTML = cachedSummary;
-            updateSummaryTimestamp();
-        }
-    }
+    // Always load summary - server handles caching logic
+    generateAISummary(false); // Auto-load/generate (server decides if cached or new)
 }
 
 async function generateAISummary(isManual = false) {
@@ -273,11 +257,18 @@ async function generateAISummary(isManual = false) {
     }
     
     try {
+        // Check if we should include completed/cancelled tasks
+        const includeCompletedCancelled = document.getElementById('includeCompletedCancelled')?.checked || false;
+        
         const response = await fetch('/api/ai/summary', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                includeCompletedCancelled: includeCompletedCancelled,
+                forceRegenerate: isManual  // Force regenerate on manual refresh
+            })
         });
         
         const data = await response.json();
@@ -285,11 +276,25 @@ async function generateAISummary(isManual = false) {
         if (response.ok) {
             // Format the summary with better styling
             const formattedSummary = formatAISummary(data.summary);
+            
+            // Show cache status if cached
+            let cacheInfo = '';
+            if (data.cached) {
+                const ageMinutes = data.cache_age_minutes;
+                if (ageMinutes < 60) {
+                    cacheInfo = `<span style="color: #666; font-size: 0.9em;">(Cached ${ageMinutes} minute${ageMinutes !== 1 ? 's' : ''} ago)</span>`;
+                } else {
+                    const ageHours = Math.floor(ageMinutes / 60);
+                    cacheInfo = `<span style="color: #666; font-size: 0.9em;">(Cached ${ageHours} hour${ageHours !== 1 ? 's' : ''} ago)</span>`;
+                }
+            }
+            
             const summaryContent = `
                 <div class="summary-content">
                     ${formattedSummary}
                     <div class="summary-meta">
                         <span class="summary-timestamp"></span>
+                        ${cacheInfo}
                         <span class="auto-refresh-info">Auto-refreshes every 3 hours</span>
                     </div>
                 </div>
@@ -297,9 +302,12 @@ async function generateAISummary(isManual = false) {
             
             summaryDiv.innerHTML = summaryContent;
             
-            // Save to localStorage
-            localStorage.setItem('cachedSummary', summaryContent);
-            lastSummaryTime = new Date();
+            // Update the timestamp based on server data
+            if (data.cache_timestamp) {
+                lastSummaryTime = new Date(data.cache_timestamp);
+            } else {
+                lastSummaryTime = new Date();
+            }
             localStorage.setItem('lastSummaryTime', lastSummaryTime.toISOString());
             
             updateSummaryTimestamp();

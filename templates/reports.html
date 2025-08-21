@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Reports</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .report-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .report-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+        
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+        
+        .report-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .report-table th {
+            background: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .report-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
+        }
+        
+        .report-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .status-open { background: #fff3cd; color: #856404; }
+        .status-in-progress { background: #cce5ff; color: #004085; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-pending { background: #f8d7da; color: #721c24; }
+        
+        .priority-urgent { color: #dc3545; font-weight: bold; }
+        .priority-high { color: #ff6b6b; font-weight: 600; }
+        .priority-medium { color: #ffa500; }
+        .priority-low { color: #28a745; }
+        
+        .comment-list {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.9em;
+        }
+        
+        .comment-item {
+            padding: 3px 0;
+            border-bottom: 1px dotted #ddd;
+        }
+        
+        .comment-date {
+            color: #7f8c8d;
+            font-size: 0.85em;
+        }
+        
+        .report-summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .copy-section {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .copy-content {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        #reportTableContainer {
+            overflow-x: auto;
+        }
+        
+        .description-cell {
+            max-width: 300px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Task Manager</h1>
+            <ul class="nav-menu">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/calendar">Calendar</a></li>
+                <li><a href="/reports" class="active">Reports</a></li>
+                <li><a href="/settings">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Task Reports</h2>
+        
+        <div class="report-container">
+            <div class="report-filters">
+                <div class="filter-group">
+                    <label for="reportType">Report Type</label>
+                    <select id="reportType">
+                        <option value="">-- Select Report Type --</option>
+                        <option value="assignee">By Assigned To</option>
+                        <option value="customer">By Customer</option>
+                        <option value="status">By Status</option>
+                        <option value="priority">By Priority</option>
+                        <option value="all">All Tasks</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group" id="filterValueGroup" style="display: none;">
+                    <label for="filterValue">Filter By</label>
+                    <select id="filterValue">
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="statusFilter">Status Filter</label>
+                    <select id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="dateRange">Date Range</label>
+                    <select id="dateRange">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="overdue">Overdue Only</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group" style="align-self: flex-end;">
+                    <button id="generateReportBtn" class="btn btn-primary">Generate Report</button>
+                </div>
+            </div>
+            
+            <div id="reportSummary" class="report-summary" style="display: none;">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Tasks</span>
+                        <span class="stat-value" id="totalCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Open</span>
+                        <span class="stat-value" id="openCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">In Progress</span>
+                        <span class="stat-value" id="inProgressCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="completedCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Overdue</span>
+                        <span class="stat-value" id="overdueCount" style="color: #dc3545;">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-actions" id="reportActions" style="display: none;">
+                <button id="copyTableBtn" class="btn btn-info">📋 Copy Table</button>
+                <button id="copyTextBtn" class="btn btn-info">📝 Copy as Text</button>
+                <button id="exportCsvBtn" class="btn btn-success">📊 Export CSV</button>
+                <button id="printBtn" class="btn btn-secondary">🖨️ Print</button>
+            </div>
+            
+            <div id="reportTableContainer">
+                <div class="no-data">
+                    <h3>No Report Generated</h3>
+                    <p>Select a report type and click "Generate Report" to view tasks</p>
+                </div>
+            </div>
+            
+            <div id="copySection" class="copy-section">
+                <h4>Copy this text:</h4>
+                <div id="copyContent" class="copy-content"></div>
+                <button id="doCopyBtn" class="btn btn-primary" style="margin-top: 10px;">Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/reports.js"></script>
+</body>
+</html>

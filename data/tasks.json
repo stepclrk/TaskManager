@@ -1,1 +1,61 @@
-[]
+[
+  {
+    "title": "Test",
+    "customer_name": "someone",
+    "description": "",
+    "category": "Development",
+    "priority": "Low",
+    "follow_up_date": "",
+    "status": "Completed",
+    "assigned_to": "Andy",
+    "tags": "",
+    "id": "2007e41c-478e-4555-b988-1bfe0cb7def3",
+    "created_date": "2025-08-21T17:23:29.839460",
+    "history": [
+      {
+        "timestamp": "2025-08-21T17:23:29.839476",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-21T17:24:23.080571",
+        "action": "modified",
+        "field": "status",
+        "old_value": "Open",
+        "new_value": "Completed"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "open Test",
+    "customer_name": "someone",
+    "description": "",
+    "category": "Development",
+    "priority": "Low",
+    "follow_up_date": "",
+    "status": "Open",
+    "assigned_to": "Andy",
+    "tags": "",
+    "id": "1e747ee0-b6a1-4f8d-818c-5be1c3177741",
+    "created_date": "2025-08-21T17:29:58.064299",
+    "history": [
+      {
+        "timestamp": "2025-08-21T17:29:58.064320",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  }
+]

@@ -14,6 +14,7 @@
                 <li><a href="/">Dashboard</a></li>
                 <li><a href="/tasks">Tasks</a></li>
                 <li><a href="/calendar">Calendar</a></li>
+                <li><a href="/reports">Reports</a></li>
                 <li><a href="/settings" class="active">Settings</a></li>
             </ul>
         </div>
@@ -32,7 +33,10 @@
                         <input type="password" id="apiKey" placeholder="sk-ant-...">
                         <small>Enter your Anthropic API key for AI features</small>
                     </div>
-                    <button type="submit" class="btn btn-primary">Save API Settings</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-primary">Save API Settings</button>
+                        <button type="button" id="testApiKeyBtn" class="btn btn-secondary">Test API Key</button>
+                    </div>
                 </form>
                 <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
                     <strong>AI Features (when API key is configured):</strong>

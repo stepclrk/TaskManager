@@ -21,6 +21,7 @@ SETTINGS_FILE = 'data/settings.json'
 TEMPLATES_FILE = 'data/templates.json'
 ATTACHMENTS_DIR = 'data/attachments'
 DASHBOARD_LAYOUTS_FILE = 'data/dashboard_layouts.json'
+AI_SUMMARY_CACHE_FILE = 'data/ai_summary_cache.json'
 
 def load_tasks():
     if os.path.exists(DATA_FILE):
@@ -95,6 +96,25 @@ def save_templates(templates):
     os.makedirs('data', exist_ok=True)
     with open(TEMPLATES_FILE, 'w') as f:
         json.dump(templates, f, indent=2)
+
+def load_ai_summary_cache():
+    if os.path.exists(AI_SUMMARY_CACHE_FILE):
+        try:
+            with open(AI_SUMMARY_CACHE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+def save_ai_summary_cache(summary, include_completed_cancelled=False):
+    os.makedirs('data', exist_ok=True)
+    cache_data = {
+        'summary': summary,
+        'timestamp': datetime.now().isoformat(),
+        'include_completed_cancelled': include_completed_cancelled
+    }
+    with open(AI_SUMMARY_CACHE_FILE, 'w') as f:
+        json.dump(cache_data, f, indent=2)
 
 def load_dashboard_layouts():
     if os.path.exists(DASHBOARD_LAYOUTS_FILE):
@@ -234,6 +254,14 @@ def calendar_page():
         import traceback
         return f"<pre>Error loading calendar page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
+@app.route('/reports')
+def reports_page():
+    try:
+        return render_template('reports.html')
+    except Exception as e:
+        import traceback
+        return f"<pre>Error loading reports page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     tasks = load_tasks()
@@ -344,26 +372,71 @@ def get_summary():
     tasks = load_tasks()
     today = date.today().isoformat()
     
+    # Filter out completed and cancelled tasks for active counts
+    active_statuses = ['Completed', 'Cancelled']
+    active_tasks = [t for t in tasks if t.get('status') not in active_statuses]
+    
     summary = {
-        'total': len(tasks),
-        'open': len([t for t in tasks if t.get('status') != 'Completed']),
-        'due_today': len([t for t in tasks if t.get('follow_up_date') == today]),
-        'overdue': len([t for t in tasks if t.get('follow_up_date') and t.get('follow_up_date') < today and t.get('status') != 'Completed']),
-        'urgent': [t for t in tasks if t.get('priority') == 'Urgent' and t.get('status') != 'Completed'],
+        'total': len(active_tasks),  # Only count active tasks
+        'open': len([t for t in tasks if t.get('status') == 'Open']),
+        'due_today': len([t for t in active_tasks if t.get('follow_up_date') == today]),
+        'overdue': len([t for t in active_tasks if t.get('follow_up_date') and t.get('follow_up_date') < today]),
+        'urgent': [t for t in active_tasks if t.get('priority') == 'Urgent'],
         'by_customer': {},
         'upcoming': []
     }
     
-    for task in tasks:
+    # Only show active tasks grouped by customer
+    for task in active_tasks:
         customer = task.get('customer_name', 'Unassigned')
         if customer not in summary['by_customer']:
             summary['by_customer'][customer] = []
         summary['by_customer'][customer].append(task)
     
-    upcoming = [t for t in tasks if t.get('follow_up_date') and t.get('follow_up_date') > today]
+    # Only show upcoming active tasks
+    upcoming = [t for t in active_tasks if t.get('follow_up_date') and t.get('follow_up_date') > today]
     summary['upcoming'] = sorted(upcoming, key=lambda x: x.get('follow_up_date', ''))[:5]
     
     return jsonify(summary)
+
+@app.route('/api/ai/summary/cache-status', methods=['GET'])
+def ai_summary_cache_status():
+    """Get the cache status without generating a new summary"""
+    cached = load_ai_summary_cache()
+    if cached:
+        cache_time = datetime.fromisoformat(cached['timestamp'])
+        age_hours = (datetime.now() - cache_time).total_seconds() / 3600
+        
+        return jsonify({
+            'has_cache': True,
+            'age_hours': age_hours,
+            'age_minutes': int(age_hours * 60),
+            'timestamp': cached['timestamp'],
+            'include_completed_cancelled': cached.get('include_completed_cancelled', False),
+            'is_valid': age_hours < 3
+        })
+    
+    return jsonify({'has_cache': False})
+
+@app.route('/api/ai/test', methods=['POST'])
+def test_api_key():
+    """Test if the provided API key is valid"""
+    data = request.json
+    test_key = data.get('api_key')
+    
+    if not test_key:
+        return jsonify({'success': False, 'error': 'No API key provided'}), 400
+    
+    # Create a simple test prompt
+    test_prompt = "Reply with just 'OK' if you can read this message."
+    
+    # Test the API key
+    result = call_ai_api({'api_key': test_key}, test_prompt, max_tokens=10)
+    
+    if result['success']:
+        return jsonify({'success': True, 'message': 'API key is valid'})
+    else:
+        return jsonify({'success': False, 'error': result.get('error', 'API key test failed')}), 400
 
 @app.route('/api/ai/summary', methods=['POST'])
 def ai_summary():
@@ -372,11 +445,40 @@ def ai_summary():
     if not settings.get('api_key'):
         return jsonify({'error': 'API key not configured'}), 400
     
+    # Get optional parameter to include completed/cancelled tasks
+    data = request.get_json() or {}
+    include_completed_cancelled = data.get('includeCompletedCancelled', False)
+    force_regenerate = data.get('forceRegenerate', False)
+    
+    # Check for cached summary
+    if not force_regenerate:
+        cached = load_ai_summary_cache()
+        if cached:
+            # Check if cache is valid (less than 3 hours old and same filter setting)
+            cache_time = datetime.fromisoformat(cached['timestamp'])
+            age_hours = (datetime.now() - cache_time).total_seconds() / 3600
+            
+            if age_hours < 3 and cached.get('include_completed_cancelled') == include_completed_cancelled:
+                # Return cached summary with cache info
+                return jsonify({
+                    'summary': cached['summary'],
+                    'cached': True,
+                    'cache_age_minutes': int(age_hours * 60),
+                    'cache_timestamp': cached['timestamp']
+                })
+    
     tasks = load_tasks()
-    open_tasks = [t for t in tasks if t.get('status') != 'Completed']
+    
+    # Filter tasks based on the parameter
+    if include_completed_cancelled:
+        open_tasks = tasks
+    else:
+        open_tasks = [t for t in tasks if t.get('status') not in ['Completed', 'Cancelled']]
     
     if not open_tasks:
-        return jsonify({'summary': 'No open tasks to summarize.'})
+        summary_text = 'No active tasks to summarize.'
+        save_ai_summary_cache(summary_text, include_completed_cancelled)
+        return jsonify({'summary': summary_text})
     
     task_descriptions = []
     for task in open_tasks[:20]:
@@ -399,9 +501,15 @@ def ai_summary():
     result = call_ai_api(settings, prompt, task_type='summarization', max_tokens=500)
     
     if result['success']:
-        return jsonify({'summary': result['text']})
+        summary_text = result['text']
+        # Save to cache
+        save_ai_summary_cache(summary_text, include_completed_cancelled)
+        return jsonify({'summary': summary_text, 'cached': False})
     else:
-        return jsonify({'error': result.get('error', 'Unknown error occurred')}), 500
+        # Log the error for debugging
+        error_msg = result.get('error', 'Unknown error occurred')
+        print(f"AI API Error: {error_msg}")
+        return jsonify({'error': error_msg}), 500
 
 @app.route('/api/ai/follow-up', methods=['POST'])
 def ai_follow_up():

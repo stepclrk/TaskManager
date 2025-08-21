@@ -149,21 +149,29 @@ async function loadTasks() {
 
 function filterTasks() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const showCompletedCancelled = document.getElementById('showCompletedCancelled').checked;
     
-    if (!searchTerm) {
-        renderTasks();
-        return;
+    let filtered = allTasks;
+    
+    // Filter out completed and cancelled tasks unless checkbox is checked
+    if (!showCompletedCancelled) {
+        filtered = filtered.filter(task => 
+            task.status !== 'Completed' && task.status !== 'Cancelled'
+        );
     }
     
-    const filtered = allTasks.filter(task => {
-        return (
-            task.title.toLowerCase().includes(searchTerm) ||
-            (task.description || '').toLowerCase().includes(searchTerm) ||
-            (task.customer_name || '').toLowerCase().includes(searchTerm) ||
-            (task.assigned_to || '').toLowerCase().includes(searchTerm) ||
-            (task.tags || '').toLowerCase().includes(searchTerm)
-        );
-    });
+    // Apply search filter if there's a search term
+    if (searchTerm) {
+        filtered = filtered.filter(task => {
+            return (
+                task.title.toLowerCase().includes(searchTerm) ||
+                (task.description || '').toLowerCase().includes(searchTerm) ||
+                (task.customer_name || '').toLowerCase().includes(searchTerm) ||
+                (task.assigned_to || '').toLowerCase().includes(searchTerm) ||
+                (task.tags || '').toLowerCase().includes(searchTerm)
+            );
+        });
+    }
     
     renderTasksFiltered(filtered);
 }
@@ -181,8 +189,8 @@ function renderTasksFiltered(tasks) {
 }
 
 function renderTasks() {
-    const tasks = allTasks;
-    renderTasksFiltered(tasks);
+    // Use filterTasks to apply all filters including completed/cancelled
+    filterTasks();
 }
 
 function renderListView(tasks, container) {

@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('apiSettingsForm').addEventListener('submit', saveApiSettings);
     document.getElementById('notificationSettingsForm').addEventListener('submit', saveNotificationSettings);
+    document.getElementById('testApiKeyBtn').addEventListener('click', testApiKey);
     
     document.getElementById('addCategoryBtn').addEventListener('click', () => addItem('categories'));
     document.getElementById('addStatusBtn').addEventListener('click', () => addItem('statuses'));
@@ -108,6 +109,71 @@ function addItem(type) {
 function removeItem(type, index) {
     currentConfig[type].splice(index, 1);
     displayList(type, currentConfig[type]);
+}
+
+async function testApiKey() {
+    const apiKey = document.getElementById('apiKey').value;
+    const button = document.getElementById('testApiKeyBtn');
+    const statusDiv = document.getElementById('aiStatusMessage');
+    
+    if (!apiKey || apiKey === '') {
+        alert('Please enter an API key first');
+        return;
+    }
+    
+    // Show loading state
+    button.disabled = true;
+    button.textContent = 'Testing...';
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#e3f2fd';
+    statusDiv.style.color = '#1976d2';
+    statusDiv.innerHTML = 'Testing API key...';
+    
+    try {
+        const response = await fetch('/api/ai/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                api_key: apiKey
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            statusDiv.style.background = '#e8f5e9';
+            statusDiv.style.color = '#2e7d32';
+            statusDiv.innerHTML = '✅ API key is valid and working!';
+            button.style.background = '#27ae60';
+            button.textContent = '✓ Valid';
+        } else {
+            statusDiv.style.background = '#ffebee';
+            statusDiv.style.color = '#c62828';
+            statusDiv.innerHTML = `❌ ${data.error || 'API key test failed'}`;
+            button.style.background = '#e74c3c';
+            button.textContent = '✗ Invalid';
+        }
+        
+        setTimeout(() => {
+            button.style.background = '';
+            button.textContent = 'Test API Key';
+        }, 3000);
+        
+    } catch (error) {
+        statusDiv.style.background = '#ffebee';
+        statusDiv.style.color = '#c62828';
+        statusDiv.innerHTML = `❌ Error testing API key: ${error.message}`;
+        button.textContent = 'Test Failed';
+    } finally {
+        button.disabled = false;
+        
+        // Hide status message after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
 }
 
 async function saveApiSettings(e) {
