@@ -283,8 +283,11 @@ def update_task(task_id):
             if 'history' not in tasks[i]:
                 tasks[i]['history'] = []
                 
+            # Preserve fields that might not be sent in the update
+            preserved_fields = ['history', 'comments', 'attachments', 'dependencies', 'blocks', 'created_date']
+            
             for field, new_value in task_data.items():
-                if field not in ['history', 'comments', 'attachments'] and tasks[i].get(field) != new_value:
+                if field not in preserved_fields and tasks[i].get(field) != new_value:
                     tasks[i]['history'].append({
                         'timestamp': datetime.now().isoformat(),
                         'action': 'modified',
@@ -293,9 +296,40 @@ def update_task(task_id):
                         'new_value': new_value
                     })
             
+            # Update task data while preserving certain fields if not provided
+            for field in preserved_fields:
+                if field not in task_data and field in tasks[i]:
+                    task_data[field] = tasks[i][field]
+            
             tasks[i].update(task_data)
             save_tasks(tasks)
             return jsonify(tasks[i])
+    return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/api/tasks/<task_id>/dependencies', methods=['PUT'])
+def update_task_dependencies(task_id):
+    """Update task dependencies"""
+    tasks = load_tasks()
+    dependencies = request.json.get('dependencies', [])
+    
+    for task in tasks:
+        if task['id'] == task_id:
+            task['dependencies'] = dependencies
+            
+            # Update blocks field for dependent tasks
+            for t in tasks:
+                if 'blocks' not in t:
+                    t['blocks'] = []
+                # Remove this task from blocks if no longer dependent
+                if task_id in t.get('blocks', []) and t['id'] not in dependencies:
+                    t['blocks'].remove(task_id)
+                # Add this task to blocks if newly dependent
+                elif t['id'] in dependencies and task_id not in t.get('blocks', []):
+                    t['blocks'].append(task_id)
+            
+            save_tasks(tasks)
+            return jsonify({'success': True, 'dependencies': dependencies})
+    
     return jsonify({'error': 'Task not found'}), 404
 
 @app.route('/api/tasks/<task_id>', methods=['DELETE'])
@@ -346,7 +380,19 @@ def ai_summary():
     
     task_descriptions = []
     for task in open_tasks[:20]:
-        task_descriptions.append(f"- {task.get('title', 'Untitled')}: {task.get('description', 'No description')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})")
+        task_info = f"- {task.get('title', 'Untitled')}: {task.get('description', 'No description')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})"
+        
+        # Add comments if they exist
+        if task.get('comments') and len(task['comments']) > 0:
+            recent_comments = task['comments'][-2:]  # Get last 2 comments
+            comments_text = '; '.join([f"Comment: {c.get('text', '')}" for c in recent_comments])
+            task_info += f" [{comments_text}]"
+        
+        # Add dependencies info if they exist
+        if task.get('dependencies') and len(task['dependencies']) > 0:
+            task_info += f" (Depends on {len(task['dependencies'])} other tasks)"
+        
+        task_descriptions.append(task_info)
     
     prompt = f"Please provide a brief executive summary of these open tasks:\n\n" + "\n".join(task_descriptions)
     
@@ -384,7 +430,28 @@ def ai_follow_up():
         format_instruction = "Write a complete email with appropriate greeting, body, and professional closing."
         max_tokens = 300
     
-    prompt = f"{tone_instructions.get(tone, tone_instructions['polite'])}. {format_instruction}\n\nWrite a follow-up message for this task:\n\nTitle: {task.get('title')}\nDescription: {task.get('description')}\nCustomer: {task.get('customer_name')}\nPriority: {task.get('priority')}"
+    # Build comprehensive task context
+    task_context = f"Title: {task.get('title')}\nDescription: {task.get('description')}\nCustomer: {task.get('customer_name')}\nPriority: {task.get('priority')}"
+    
+    # Add status and dates if available
+    if task.get('status'):
+        task_context += f"\nStatus: {task.get('status')}"
+    if task.get('follow_up_date'):
+        task_context += f"\nDue Date: {task.get('follow_up_date')}"
+    if task.get('assigned_to'):
+        task_context += f"\nAssigned to: {task.get('assigned_to')}"
+    
+    # Add comments if they exist
+    if task.get('comments') and len(task['comments']) > 0:
+        task_context += "\n\nRecent Comments:"
+        for comment in task['comments'][-3:]:  # Last 3 comments
+            task_context += f"\n- {comment.get('text', '')}"
+    
+    # Add dependencies context if they exist
+    if task.get('dependencies') and len(task['dependencies']) > 0:
+        task_context += f"\n\nNote: This task has {len(task['dependencies'])} dependencies that may need to be mentioned."
+    
+    prompt = f"{tone_instructions.get(tone, tone_instructions['polite'])}. {format_instruction}\n\nWrite a follow-up message for this task:\n\n{task_context}"
     
     result = call_ai_api(settings, prompt, task_type='generation', max_tokens=max_tokens)
     
@@ -450,21 +517,29 @@ def import_tasks():
 # Template endpoints
 @app.route('/api/templates', methods=['GET'])
 def get_templates():
-    return jsonify(load_templates())
+    templates_data = load_templates()
+    return jsonify(templates_data.get('templates', []))
 
 @app.route('/api/templates', methods=['POST'])
 def create_template():
     template = request.json
-    template['id'] = str(uuid.uuid4())
+    if 'id' not in template:
+        template['id'] = str(uuid.uuid4())
     templates_data = load_templates()
+    if 'templates' not in templates_data:
+        templates_data['templates'] = []
     templates_data['templates'].append(template)
     save_templates(templates_data)
     return jsonify(template), 201
 
-@app.route('/api/templates/<template_id>', methods=['DELETE'])
-def delete_template(template_id):
+@app.route('/api/templates/<template_identifier>', methods=['DELETE'])
+def delete_template(template_identifier):
     templates_data = load_templates()
-    templates_data['templates'] = [t for t in templates_data['templates'] if t['id'] != template_id]
+    # Support deletion by both ID and name
+    templates_data['templates'] = [
+        t for t in templates_data['templates'] 
+        if t.get('id') != template_identifier and t.get('name') != template_identifier
+    ]
     save_templates(templates_data)
     return '', 204
 
@@ -562,6 +637,53 @@ def download_attachment(task_id, attachment_id):
     
     return jsonify({'error': 'Attachment not found'}), 404
 
+@app.route('/api/tasks/<task_id>/attachments/<attachment_id>', methods=['DELETE'])
+def delete_attachment(task_id, attachment_id):
+    """Delete an attachment from a task"""
+    tasks = load_tasks()
+    
+    for task in tasks:
+        if task['id'] == task_id:
+            # Find and remove the attachment from the task
+            attachments = task.get('attachments', [])
+            attachment_to_delete = None
+            
+            for i, attachment in enumerate(attachments):
+                if attachment['id'] == attachment_id:
+                    attachment_to_delete = attachment
+                    attachments.pop(i)
+                    break
+            
+            if attachment_to_delete:
+                # Delete the physical file
+                file_path = os.path.join(ATTACHMENTS_DIR, task_id, f"{attachment_id}-{attachment_to_delete['filename']}")
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        print(f"Error deleting file: {e}")
+                
+                # Add to history
+                if 'history' not in task:
+                    task['history'] = []
+                
+                task['history'].append({
+                    'timestamp': datetime.now().isoformat(),
+                    'action': 'attachment_deleted',
+                    'field': 'attachments',
+                    'old_value': attachment_to_delete['filename'],
+                    'new_value': None
+                })
+                
+                # Save updated tasks
+                save_tasks(tasks)
+                
+                return jsonify({'success': True, 'message': 'Attachment deleted successfully'})
+            else:
+                return jsonify({'error': 'Attachment not found'}), 404
+    
+    return jsonify({'error': 'Task not found'}), 404
+
 # Similar tasks endpoint
 @app.route('/api/tasks/similar', methods=['POST'])
 def get_similar_tasks():
@@ -626,6 +748,7 @@ def enhance_text():
     data = request.json
     text = data.get('text', '')
     enhancement_type = data.get('type', 'improve')  # improve, grammar, professional
+    task_context = data.get('task_context', None)  # Optional task context
     
     prompts = {
         'improve': 'Improve the clarity and readability of this text while maintaining its meaning:',
@@ -633,12 +756,136 @@ def enhance_text():
         'professional': 'Rewrite this text in a more professional tone:'
     }
     
-    prompt = f"{prompts.get(enhancement_type, prompts['improve'])}\n\n{text}"
+    # Build prompt with optional context
+    prompt = prompts.get(enhancement_type, prompts['improve'])
+    
+    # Add task context if provided
+    if task_context:
+        prompt += f"\n\nContext for this text (for reference only, do not include in enhanced text):\n"
+        prompt += f"Task: {task_context.get('title', 'N/A')}\n"
+        if task_context.get('customer_name'):
+            prompt += f"Customer: {task_context['customer_name']}\n"
+        if task_context.get('priority'):
+            prompt += f"Priority: {task_context['priority']}\n"
+        if task_context.get('comments') and len(task_context['comments']) > 0:
+            prompt += f"Recent comment: {task_context['comments'][-1].get('text', '')}\n"
+    
+    prompt += f"\n\nText to enhance:\n{text}"
     
     result = call_ai_api(settings, prompt, task_type='enhancement', max_tokens=500)
     
     if result['success']:
         return jsonify({'enhanced_text': result['text']})
+    else:
+        return jsonify({'error': result.get('error', 'Unknown error occurred')}), 500
+
+@app.route('/api/ai/task-summary/<task_id>', methods=['POST'])
+def task_summary(task_id):
+    """Generate executive or in-depth summary of a specific task"""
+    settings = load_settings()
+    
+    if not settings.get('api_key'):
+        return jsonify({'error': 'API key not configured'}), 400
+    
+    # Get summary type from request
+    data = request.json
+    summary_type = data.get('type', 'executive')  # 'executive' or 'detailed'
+    
+    # Load the specific task
+    tasks = load_tasks()
+    task = next((t for t in tasks if t['id'] == task_id), None)
+    
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    # Build comprehensive task information
+    task_info = f"Task Title: {task.get('title', 'Untitled')}\n"
+    task_info += f"Customer: {task.get('customer_name', 'N/A')}\n"
+    task_info += f"Status: {task.get('status', 'Unknown')}\n"
+    task_info += f"Priority: {task.get('priority', 'Medium')}\n"
+    task_info += f"Category: {task.get('category', 'N/A')}\n"
+    
+    if task.get('assigned_to'):
+        task_info += f"Assigned to: {task.get('assigned_to')}\n"
+    
+    if task.get('follow_up_date'):
+        task_info += f"Due Date: {task.get('follow_up_date')}\n"
+        # Calculate if overdue
+        if task.get('follow_up_date') < date.today().isoformat() and task.get('status') != 'Completed':
+            task_info += "Status Note: OVERDUE\n"
+    
+    if task.get('description'):
+        task_info += f"\nDescription:\n{task.get('description')}\n"
+    
+    # Add dependencies information
+    if task.get('dependencies') and len(task['dependencies']) > 0:
+        task_info += f"\nDependencies ({len(task['dependencies'])} tasks):\n"
+        for dep_id in task['dependencies'][:5]:  # Limit to first 5
+            dep_task = next((t for t in tasks if t['id'] == dep_id), None)
+            if dep_task:
+                task_info += f"  - {dep_task.get('title', 'Unknown')} (Status: {dep_task.get('status', 'Unknown')})\n"
+    
+    # Add blocks information
+    if task.get('blocks') and len(task['blocks']) > 0:
+        task_info += f"\nBlocks ({len(task['blocks'])} tasks):\n"
+        for block_id in task['blocks'][:5]:  # Limit to first 5
+            block_task = next((t for t in tasks if t['id'] == block_id), None)
+            if block_task:
+                task_info += f"  - {block_task.get('title', 'Unknown')}\n"
+    
+    # Add comments
+    if task.get('comments') and len(task['comments']) > 0:
+        task_info += f"\nComments ({len(task['comments'])} total):\n"
+        for comment in task['comments']:
+            task_info += f"  [{comment.get('timestamp', 'Unknown time')}]: {comment.get('text', '')}\n"
+    
+    # Add attachments information
+    if task.get('attachments') and len(task['attachments']) > 0:
+        task_info += f"\nAttachments ({len(task['attachments'])} files):\n"
+        for attachment in task['attachments']:
+            task_info += f"  - {attachment.get('filename', 'Unknown')} ({attachment.get('size', 0)} bytes)\n"
+    
+    # Add history/timeline for detailed summary
+    if summary_type == 'detailed' and task.get('history'):
+        task_info += f"\nActivity Timeline ({len(task['history'])} events):\n"
+        for event in task['history'][-10:]:  # Last 10 events
+            task_info += f"  [{event.get('timestamp', '')}] {event.get('action', '')}: "
+            task_info += f"{event.get('field', '')} changed"
+            if event.get('old_value') and event.get('new_value'):
+                task_info += f" from '{event['old_value']}' to '{event['new_value']}'"
+            task_info += "\n"
+    
+    # Create appropriate prompt based on summary type
+    if summary_type == 'executive':
+        prompt = f"""Create a concise executive summary of this task. Focus on:
+1. Current status and urgency
+2. Key blockers or dependencies
+3. Main action items needed
+4. Critical dates and deadlines
+
+Keep it brief (3-4 sentences) and highlight only the most important information.
+
+{task_info}"""
+        max_tokens = 300
+    else:  # detailed
+        prompt = f"""Create a comprehensive summary of this task. Include:
+1. Complete overview of the task and its objectives
+2. Current status and progress analysis
+3. All dependencies and their impact
+4. Timeline of key events and changes
+5. Comments analysis and key decisions made
+6. Next steps and recommendations
+7. Risk assessment if applicable
+
+Provide a thorough analysis while maintaining clarity.
+
+{task_info}"""
+        max_tokens = 800
+    
+    result = call_ai_api(settings, prompt, task_type='summarization', max_tokens=max_tokens)
+    
+    if result['success']:
+        return jsonify({'summary': result['text'], 'type': summary_type})
     else:
         return jsonify({'error': result.get('error', 'Unknown error occurred')}), 500
 
@@ -711,11 +958,13 @@ if __name__ == '__main__':
     print()
     
     # Open browser automatically after a short delay
-    def open_browser():
-        time.sleep(1.5)
-        webbrowser.open(f'http://localhost:{port}')
-    
-    browser_thread = threading.Thread(target=open_browser, daemon=True)
-    browser_thread.start()
+    # Only open browser in the main process, not in the reloader process
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        def open_browser():
+            time.sleep(1.5)
+            webbrowser.open(f'http://localhost:{port}')
+        
+        browser_thread = threading.Thread(target=open_browser, daemon=True)
+        browser_thread.start()
     
     app.run(debug=True, port=port, host='127.0.0.1')

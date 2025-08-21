@@ -27,10 +27,14 @@ async function initializeEnhancedFeatures() {
     
     // Override the original showAddTaskModal to include template selector
     const originalShowAddTaskModal = window.showAddTaskModal;
-    window.showAddTaskModal = function() {
+    window.showAddTaskModal = async function() {
         if (originalShowAddTaskModal) originalShowAddTaskModal();
         document.getElementById('templateSelector').style.display = 'block';
         resetTabs();
+        
+        // Reload templates when opening modal
+        const templates = await window.enhancedFeatures.loadTemplates();
+        window.enhancedFeatures.populateTemplateSelector(templates);
     };
     
     // Override the original editTask to load enhanced data
@@ -75,6 +79,12 @@ function initializeQuillEditor() {
         },
         placeholder: 'Enter task description...'
     });
+    
+    // Make quillEditor globally accessible for template application
+    window.quillEditor = quillEditor;
+    
+    // Also store reference on the container for backup access
+    container.__quill = quillEditor;
 }
 
 function setupTabSwitching() {
@@ -181,10 +191,22 @@ function setupEnhancedEventListeners() {
             const type = types[prompt('Choose:\n1. Improve clarity\n2. Fix grammar\n3. Professional tone\n\nEnter 1, 2, or 3:') - 1] || 'improve';
             
             try {
+                // Get current task context
+                const taskContext = currentTask || {
+                    title: document.getElementById('title').value,
+                    customer_name: document.getElementById('customerName').value,
+                    priority: document.getElementById('priority').value,
+                    comments: currentTask?.comments || []
+                };
+                
                 const response = await fetch('/api/ai/enhance-text', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, type })
+                    body: JSON.stringify({ 
+                        text, 
+                        type,
+                        task_context: taskContext
+                    })
                 });
                 
                 const data = await response.json();
@@ -286,18 +308,25 @@ function showDependencyPicker() {
     const list = document.getElementById('depTaskList');
     const currentTaskId = document.getElementById('taskId').value;
     
+    // Get current task's dependencies
+    const currentTask = currentTaskId ? allTasks.find(t => t.id === currentTaskId) : null;
+    const currentDependencies = currentTask?.dependencies || [];
+    
     // Populate with available tasks
     const availableTasks = allTasks.filter(t => 
         t.id !== currentTaskId && 
         t.status !== 'Completed'
     );
     
-    list.innerHTML = availableTasks.map(task => `
-        <div class="dep-task-item" data-task-id="${task.id}">
-            <strong>${escapeHtml(task.title)}</strong>
-            <small>${escapeHtml(task.customer_name || 'N/A')}</small>
-        </div>
-    `).join('');
+    list.innerHTML = availableTasks.map(task => {
+        const isSelected = currentDependencies.includes(task.id);
+        return `
+            <div class="dep-task-item ${isSelected ? 'selected' : ''}" data-task-id="${task.id}">
+                <strong>${escapeHtml(task.title)}</strong>
+                <small>${escapeHtml(task.customer_name || 'N/A')}</small>
+            </div>
+        `;
+    }).join('');
     
     // Add click handlers
     list.querySelectorAll('.dep-task-item').forEach(item => {
@@ -313,19 +342,35 @@ function addSelectedDependencies() {
     const selected = document.querySelectorAll('.dep-task-item.selected');
     const taskId = document.getElementById('taskId').value;
     
+    // Clear and rebuild the dependencies list based on current selection
+    selectedDependencies = [];
     selected.forEach(item => {
         const depId = item.dataset.taskId;
-        if (!selectedDependencies.includes(depId)) {
-            selectedDependencies.push(depId);
-        }
+        selectedDependencies.push(depId);
     });
     
-    // Update the task with new dependencies
+    // Update the task with new dependencies and save to server
     if (taskId) {
         const task = allTasks.find(t => t.id === taskId);
         if (task) {
             task.dependencies = selectedDependencies;
-            // This would normally save to server
+            
+            // Save dependencies to server
+            fetch(`/api/tasks/${taskId}/dependencies`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    dependencies: selectedDependencies
+                })
+            }).then(response => {
+                if (!response.ok) {
+                    console.error('Failed to save dependencies');
+                }
+            }).catch(error => {
+                console.error('Error saving dependencies:', error);
+            });
         }
     }
     

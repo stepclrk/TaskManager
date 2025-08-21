@@ -5,7 +5,8 @@ async function loadTemplates() {
     try {
         const response = await fetch('/api/templates');
         const data = await response.json();
-        return data.templates || [];
+        // The API now returns the array directly
+        return Array.isArray(data) ? data : [];
     } catch (error) {
         console.error('Error loading templates:', error);
         return [];
@@ -32,19 +33,57 @@ function applyTemplate() {
     if (!selectedOption.value) return;
     
     const template = JSON.parse(selectedOption.dataset.template);
+    console.log('Applying template:', template); // Debug log
     
     // Apply template values
     if (template.title_pattern) {
         document.getElementById('title').value = template.title_pattern;
     }
+    
     if (template.description) {
-        const descField = document.getElementById('description');
-        if (descField.quill) {
-            descField.quill.setText(template.description);
-        } else {
-            descField.value = template.description;
+        console.log('Template has description:', template.description); // Debug log
+        
+        // Try multiple ways to set the description
+        // 1. Try the global quillEditor variable
+        if (window.quillEditor) {
+            console.log('Found window.quillEditor, setting text'); // Debug log
+            window.quillEditor.setText(template.description);
+            // Also set the hidden field
+            document.getElementById('description').value = template.description;
+        } 
+        // 2. Try finding Quill instance on the container
+        else {
+            const editorContainer = document.getElementById('descriptionEditor');
+            if (editorContainer && editorContainer.__quill) {
+                console.log('Found Quill on container'); // Debug log
+                editorContainer.__quill.setText(template.description);
+                document.getElementById('description').value = template.description;
+            }
+            // 3. Try accessing through Quill.find
+            else if (typeof Quill !== 'undefined' && Quill.find) {
+                const quillInstance = Quill.find(document.getElementById('descriptionEditor'));
+                if (quillInstance) {
+                    console.log('Found Quill instance via Quill.find'); // Debug log
+                    quillInstance.setText(template.description);
+                    document.getElementById('description').value = template.description;
+                }
+            }
+            // 4. Final fallback to regular textarea/hidden field
+            else {
+                console.log('No Quill editor found, using fallback'); // Debug log
+                const descField = document.getElementById('description');
+                if (descField) {
+                    descField.value = template.description;
+                }
+                // Also try to set it in the div if it exists
+                const editorDiv = document.getElementById('descriptionEditor');
+                if (editorDiv) {
+                    editorDiv.innerHTML = `<p>${template.description}</p>`;
+                }
+            }
         }
     }
+    
     if (template.category) {
         document.getElementById('category').value = template.category;
     }
@@ -53,6 +92,12 @@ function applyTemplate() {
     }
     if (template.tags) {
         document.getElementById('tags').value = template.tags;
+    }
+    
+    // Trigger change event on title to check for similar tasks
+    const titleInput = document.getElementById('title');
+    if (titleInput) {
+        titleInput.dispatchEvent(new Event('input'));
     }
 }
 
@@ -160,12 +205,17 @@ function loadAttachments(taskId) {
         container.innerHTML = '<p class="no-attachments">No attachments</p>';
     } else {
         container.innerHTML = attachments.map(attachment => `
-            <div class="attachment-item">
+            <div class="attachment-item" data-attachment-id="${attachment.id}">
                 <span class="attachment-icon">📎</span>
                 <span class="attachment-name">${escapeHtml(attachment.filename)}</span>
                 <span class="attachment-size">${formatFileSize(attachment.size)}</span>
-                <a href="/api/tasks/${taskId}/attachments/${attachment.id}" 
-                   class="btn btn-small" download>Download</a>
+                <div class="attachment-actions">
+                    <a href="/api/tasks/${taskId}/attachments/${attachment.id}" 
+                       class="btn btn-small" download>Download</a>
+                    <button onclick="deleteAttachment('${taskId}', '${attachment.id}')" 
+                            class="btn btn-small btn-danger"
+                            title="Delete attachment">🗑️ Delete</button>
+                </div>
             </div>
         `).join('');
     }
@@ -190,6 +240,55 @@ async function uploadAttachment(taskId, file) {
         console.error('Error uploading attachment:', error);
     }
 }
+
+async function deleteAttachment(taskId, attachmentId) {
+    if (!confirm('Are you sure you want to delete this attachment?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            // Show success feedback
+            const attachmentItem = document.querySelector(`[data-attachment-id="${attachmentId}"]`);
+            if (attachmentItem) {
+                attachmentItem.style.background = '#fee';
+                attachmentItem.style.transition = 'all 0.3s';
+                setTimeout(() => {
+                    attachmentItem.style.opacity = '0';
+                    setTimeout(() => {
+                        // Reload tasks and attachments
+                        loadTasks().then(() => {
+                            loadAttachments(taskId);
+                            // Update attachment count
+                            const task = allTasks.find(t => t.id === taskId);
+                            const attachmentCount = (task?.attachments || []).length;
+                            const countElement = document.getElementById('attachmentCount');
+                            if (countElement) {
+                                countElement.textContent = attachmentCount > 0 ? attachmentCount : '';
+                            }
+                        });
+                    }, 300);
+                }, 100);
+            }
+        } else {
+            const error = await response.json();
+            alert('Error deleting attachment: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting attachment:', error);
+        alert('Error deleting attachment: ' + error.message);
+    }
+}
+
+// Make deleteAttachment globally available
+window.deleteAttachment = deleteAttachment;
 
 // History Timeline
 function loadHistory(taskId) {
@@ -333,6 +432,20 @@ async function enhanceTextWithAI(quill) {
     
     const enhancementType = typeMap[type] || 'improve';
     
+    // Get current task context if available
+    let taskContext = null;
+    if (typeof currentTask !== 'undefined' && currentTask) {
+        taskContext = currentTask;
+    } else if (document.getElementById('title')) {
+        // Try to build context from form fields
+        taskContext = {
+            title: document.getElementById('title').value,
+            customer_name: document.getElementById('customerName')?.value,
+            priority: document.getElementById('priority')?.value,
+            comments: []
+        };
+    }
+    
     try {
         const response = await fetch('/api/ai/enhance-text', {
             method: 'POST',
@@ -341,7 +454,8 @@ async function enhanceTextWithAI(quill) {
             },
             body: JSON.stringify({
                 text: text,
-                type: enhancementType
+                type: enhancementType,
+                task_context: taskContext
             })
         });
         

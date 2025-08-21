@@ -42,6 +42,20 @@ async function loadSettings() {
         document.getElementById('apiKey').value = currentSettings.api_key || '';
         document.getElementById('notificationsEnabled').checked = currentSettings.notifications_enabled;
         document.getElementById('checkInterval').value = currentSettings.check_interval || 60;
+        
+        // Show AI status
+        const statusMessage = document.getElementById('aiStatusMessage');
+        if (currentSettings.api_key && currentSettings.api_key !== '') {
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = '#d4edda';
+            statusMessage.style.color = '#155724';
+            statusMessage.innerHTML = '✅ <strong>AI Features Enabled</strong> - Your Claude API key is configured.';
+        } else {
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = '#fff3cd';
+            statusMessage.style.color = '#856404';
+            statusMessage.innerHTML = '⚠️ <strong>AI Features Disabled</strong> - Add your Claude API key to enable AI features.';
+        }
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -117,7 +131,11 @@ async function saveApiSettings(e) {
         });
         
         if (response.ok) {
-            alert('API settings saved successfully');
+            if (apiKey && apiKey !== '') {
+                alert('API settings saved successfully!\n\nAI features are now enabled:\n• AI Summary on Dashboard\n• Generate Follow-up Messages\n• Text Enhancement in Tasks');
+            } else {
+                alert('API key removed.\n\nAI features have been disabled.');
+            }
         }
     } catch (error) {
         console.error('Error saving API settings:', error);
@@ -200,11 +218,14 @@ async function loadTemplates() {
     try {
         const response = await fetch('/api/templates');
         if (response.ok) {
-            currentTemplates = await response.json();
+            const data = await response.json();
+            // Ensure currentTemplates is always an array
+            currentTemplates = Array.isArray(data) ? data : [];
             displayTemplates();
         }
     } catch (error) {
         console.error('Error loading templates:', error);
+        currentTemplates = []; // Initialize as empty array on error
     }
 }
 

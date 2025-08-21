@@ -1,30 +1,66 @@
 let lastSummaryTime = null;
+window.hasApiKey = false;
+
+async function checkApiKeyAndSetupAI() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        
+        // Check if API key exists and is not empty
+        if (settings.api_key && settings.api_key !== '' && !settings.api_key.startsWith('***')) {
+            window.hasApiKey = true;
+        } else if (settings.api_key && settings.api_key.startsWith('***')) {
+            // API key is masked, so it exists
+            window.hasApiKey = true;
+        } else {
+            window.hasApiKey = false;
+        }
+        
+        // Show/hide AI features based on API key
+        const aiSection = document.getElementById('aiSummarySection');
+        if (window.hasApiKey) {
+            aiSection.style.display = 'block';
+            
+            // Load last summary time from localStorage
+            const savedTime = localStorage.getItem('lastSummaryTime');
+            if (savedTime) {
+                lastSummaryTime = new Date(savedTime);
+            }
+            
+            // Check if we should auto-generate summary
+            checkAndGenerateSummary();
+            
+            // Setup generate button listener
+            document.getElementById('generateSummaryBtn').addEventListener('click', () => {
+                generateAISummary(true); // Force manual generation
+            });
+            
+            // Set up auto-refresh every 30 minutes to check if summary needs updating
+            setInterval(() => {
+                checkAndGenerateSummary();
+            }, 30 * 60 * 1000); // 30 minutes
+        } else {
+            aiSection.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking API key:', error);
+        window.hasApiKey = false;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboard();
     
-    // Load last summary time from localStorage
-    const savedTime = localStorage.getItem('lastSummaryTime');
-    if (savedTime) {
-        lastSummaryTime = new Date(savedTime);
-    }
-    
-    // Check if we should auto-generate summary
-    checkAndGenerateSummary();
+    // Check for API key and setup AI features
+    checkApiKeyAndSetupAI();
     
     document.getElementById('refreshBtn').addEventListener('click', () => {
         loadDashboard();
-        checkAndGenerateSummary();
+        // Only check summary if API key exists
+        if (window.hasApiKey) {
+            checkAndGenerateSummary();
+        }
     });
-    
-    document.getElementById('generateSummaryBtn').addEventListener('click', () => {
-        generateAISummary(true); // Force manual generation
-    });
-    
-    // Set up auto-refresh every 30 minutes to check if summary needs updating
-    setInterval(() => {
-        checkAndGenerateSummary();
-    }, 30 * 60 * 1000); // 30 minutes
 });
 
 async function loadDashboard() {
@@ -122,6 +158,84 @@ function displayCustomerTasks(customerTasks) {
     container.innerHTML = html;
 }
 
+function formatAISummary(text) {
+    if (!text) return '<p class="empty-message">No summary available</p>';
+    
+    // Escape HTML first
+    let formatted = escapeHtml(text);
+    
+    // Handle "Summary:" prefix if present
+    formatted = formatted.replace(/^Summary:\s*/i, '');
+    
+    // Split into paragraphs (double newlines)
+    let paragraphs = formatted.split(/\n\n+/);
+    
+    let html = '';
+    
+    paragraphs.forEach(paragraph => {
+        // Check if paragraph contains a list (lines starting with -, *, or numbers)
+        const lines = paragraph.split('\n');
+        
+        // Check if this looks like a list
+        const isBulletList = lines.some(line => /^\s*[-*•]\s+/.test(line));
+        const isNumberedList = lines.some(line => /^\s*\d+[\.)]\s+/.test(line));
+        
+        if (isBulletList || isNumberedList) {
+            // Process as a list
+            html += '<ul class="summary-list">';
+            lines.forEach(line => {
+                // Remove bullet points and clean up
+                const cleanLine = line
+                    .replace(/^\s*[-*•]\s+/, '')
+                    .replace(/^\s*\d+[\.)]\s+/, '')
+                    .trim();
+                
+                if (cleanLine) {
+                    // Check for key-value pairs (e.g., "Priority: High")
+                    if (cleanLine.includes(':')) {
+                        const [key, ...valueParts] = cleanLine.split(':');
+                        const value = valueParts.join(':').trim();
+                        
+                        // Highlight certain keywords
+                        let formattedValue = value;
+                        if (/high|urgent|critical/i.test(value)) {
+                            formattedValue = `<span class="highlight-urgent">${value}</span>`;
+                        } else if (/medium|moderate/i.test(value)) {
+                            formattedValue = `<span class="highlight-medium">${value}</span>`;
+                        } else if (/low|minor/i.test(value)) {
+                            formattedValue = `<span class="highlight-low">${value}</span>`;
+                        } else if (/completed|done|finished/i.test(value)) {
+                            formattedValue = `<span class="highlight-completed">${value}</span>`;
+                        }
+                        
+                        html += `<li><strong>${key}:</strong> ${formattedValue}</li>`;
+                    } else {
+                        html += `<li>${cleanLine}</li>`;
+                    }
+                }
+            });
+            html += '</ul>';
+        } else if (paragraph.trim()) {
+            // Check if it's a heading (starts with uppercase and is short)
+            if (paragraph.length < 50 && /^[A-Z]/.test(paragraph) && !paragraph.includes('.')) {
+                html += `<h4 class="summary-heading">${paragraph}</h4>`;
+            } else {
+                // Regular paragraph
+                // Highlight important keywords
+                let highlightedParagraph = paragraph
+                    .replace(/\b(\d+)\s+(task[s]?|item[s]?|ticket[s]?)\b/gi, '<strong>$1 $2</strong>')
+                    .replace(/\b(urgent|critical|high priority|important)\b/gi, '<span class="highlight-urgent">$1</span>')
+                    .replace(/\b(completed|done|finished|resolved)\b/gi, '<span class="highlight-completed">$1</span>')
+                    .replace(/\b(pending|in progress|ongoing)\b/gi, '<span class="highlight-pending">$1</span>');
+                
+                html += `<p class="summary-paragraph">${highlightedParagraph}</p>`;
+            }
+        }
+    });
+    
+    return html || '<p class="empty-message">No summary content</p>';
+}
+
 function checkAndGenerateSummary() {
     const THREE_HOURS = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
     const now = new Date();
@@ -169,10 +283,11 @@ async function generateAISummary(isManual = false) {
         const data = await response.json();
         
         if (response.ok) {
-            // Format the summary with timestamp
+            // Format the summary with better styling
+            const formattedSummary = formatAISummary(data.summary);
             const summaryContent = `
                 <div class="summary-content">
-                    <p>${escapeHtml(data.summary)}</p>
+                    ${formattedSummary}
                     <div class="summary-meta">
                         <span class="summary-timestamp"></span>
                         <span class="auto-refresh-info">Auto-refreshes every 3 hours</span>

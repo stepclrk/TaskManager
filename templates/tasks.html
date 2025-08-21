@@ -189,6 +189,7 @@
             
             <!-- Modal Actions -->
             <div class="form-actions">
+                <button type="button" id="generateSummaryBtn" class="btn btn-info">📝 Generate Summary</button>
                 <button type="button" id="generateFollowUpBtn" class="btn btn-info">Generate Follow-up</button>
                 <button type="submit" form="taskForm" class="btn btn-primary">Save Task</button>
                 <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
@@ -260,6 +261,35 @@
             <div class="form-actions">
                 <button id="selectDepBtn" class="btn btn-primary">Add Selected</button>
                 <button id="cancelDepBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Summary Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close">&times;</span>
+            <h3>Task Summary</h3>
+            
+            <div class="summary-type-selector">
+                <button class="summary-type-btn active" data-type="executive">📊 Executive Summary</button>
+                <button class="summary-type-btn" data-type="detailed">📋 Detailed Analysis</button>
+            </div>
+            
+            <div id="summaryContent" class="summary-content">
+                <div class="summary-loading">
+                    <span class="loading-spinner">⟳</span> Generating summary...
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button id="regenerateSummaryBtn" class="btn btn-primary">
+                    <span style="margin-right: 5px;">🔄</span> Regenerate
+                </button>
+                <button id="copySummaryBtn" class="btn btn-info">
+                    <span style="margin-right: 5px;">📋</span> Copy to Clipboard
+                </button>
+                <button id="closeSummaryBtn" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>

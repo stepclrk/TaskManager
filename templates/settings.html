@@ -25,6 +25,7 @@
         <div class="settings-grid">
             <div class="settings-card">
                 <h3>API Configuration</h3>
+                <div id="aiStatusMessage" style="padding: 10px; margin-bottom: 15px; border-radius: 4px; display: none;"></div>
                 <form id="apiSettingsForm">
                     <div class="form-group">
                         <label for="apiKey">Claude API Key</label>
@@ -33,6 +34,14 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Save API Settings</button>
                 </form>
+                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <strong>AI Features (when API key is configured):</strong>
+                    <ul style="margin: 10px 0 0 20px; line-height: 1.6;">
+                        <li>AI-powered task summaries on Dashboard</li>
+                        <li>Generate follow-up messages for tasks</li>
+                        <li>Enhance task descriptions with AI</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="settings-card">

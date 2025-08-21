@@ -1,8 +1,38 @@
 let allTasks = [];
 let currentTask = null;
 let config = {};
+window.hasApiKey = false;
+
+async function checkApiKey() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        
+        // Check if API key exists
+        if (settings.api_key && settings.api_key !== '') {
+            window.hasApiKey = true;
+        } else {
+            window.hasApiKey = false;
+        }
+        
+        // Show/hide AI features
+        const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
+        const enhanceTextBtn = document.getElementById('enhanceTextBtn');
+        
+        if (generateFollowUpBtn) {
+            generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        }
+        if (enhanceTextBtn) {
+            enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        }
+    } catch (error) {
+        console.error('Error checking API key:', error);
+        window.hasApiKey = false;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    checkApiKey();
     loadConfig();
     loadTasks().then(() => {
         // Check if we need to open a specific task
@@ -26,7 +56,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('taskForm').addEventListener('submit', saveTask);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
-    document.getElementById('generateFollowUpBtn').addEventListener('click', showFollowUpModal);
+    
+    // Only add listener if API key exists
+    const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
+    if (generateFollowUpBtn) {
+        generateFollowUpBtn.addEventListener('click', showFollowUpModal);
+    }
+    
+    // Add listener for summary button
+    const generateSummaryBtn = document.getElementById('generateSummaryBtn');
+    if (generateSummaryBtn) {
+        generateSummaryBtn.addEventListener('click', showSummaryModal);
+    }
     
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -251,11 +292,41 @@ function showAddTaskModal() {
     document.getElementById('modalTitle').textContent = 'Add Task';
     document.getElementById('taskForm').reset();
     document.getElementById('taskModal').style.display = 'block';
+    
+    // Update AI button visibility
+    const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
+    const enhanceTextBtn = document.getElementById('enhanceTextBtn');
+    const generateSummaryBtn = document.getElementById('generateSummaryBtn');
+    
+    if (generateFollowUpBtn) {
+        generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+    }
+    if (enhanceTextBtn) {
+        enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+    }
+    if (generateSummaryBtn) {
+        generateSummaryBtn.style.display = 'none'; // Hide for new tasks
+    }
 }
 
 function editTask(taskId) {
     currentTask = allTasks.find(t => t.id === taskId);
     if (!currentTask) return;
+    
+    // Update AI button visibility
+    const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
+    const enhanceTextBtn = document.getElementById('enhanceTextBtn');
+    const generateSummaryBtn = document.getElementById('generateSummaryBtn');
+    
+    if (generateFollowUpBtn) {
+        generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+    }
+    if (enhanceTextBtn) {
+        enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+    }
+    if (generateSummaryBtn) {
+        generateSummaryBtn.style.display = window.hasApiKey ? 'inline-block' : 'none'; // Show for existing tasks
+    }
     
     document.getElementById('modalTitle').textContent = 'Edit Task';
     document.getElementById('taskId').value = currentTask.id;
@@ -664,4 +735,160 @@ function showErrorIndicator(element) {
     setTimeout(() => {
         element.classList.remove('update-error');
     }, 1000);
+}
+
+// Task Summary Functions
+function showSummaryModal() {
+    if (!currentTask && !document.getElementById('title').value) {
+        alert('Please enter task details first or save the task');
+        return;
+    }
+    
+    // Show/hide summary button based on API key
+    const generateSummaryBtn = document.getElementById('generateSummaryBtn');
+    if (generateSummaryBtn) {
+        generateSummaryBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+    }
+    
+    if (!window.hasApiKey) {
+        alert('Please configure your API key in Settings to use AI features');
+        return;
+    }
+    
+    document.getElementById('summaryModal').style.display = 'block';
+    
+    // Add event listeners for summary type buttons
+    document.querySelectorAll('.summary-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.summary-type-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            generateTaskSummary(this.dataset.type);
+        });
+    });
+    
+    // Add event listeners for modal buttons
+    document.getElementById('regenerateSummaryBtn').addEventListener('click', () => {
+        const activeType = document.querySelector('.summary-type-btn.active').dataset.type;
+        generateTaskSummary(activeType);
+    });
+    
+    document.getElementById('copySummaryBtn').addEventListener('click', copySummary);
+    
+    document.getElementById('closeSummaryBtn').addEventListener('click', () => {
+        document.getElementById('summaryModal').style.display = 'none';
+    });
+    
+    // Generate initial summary
+    generateTaskSummary('executive');
+}
+
+async function generateTaskSummary(summaryType) {
+    const summaryDiv = document.getElementById('summaryContent');
+    
+    // Show loading
+    summaryDiv.innerHTML = '<div class="summary-loading"><span class="loading-spinner">⟳</span> Generating ' + 
+                          (summaryType === 'executive' ? 'executive summary' : 'detailed analysis') + '...</div>';
+    
+    // Get task ID
+    const taskId = currentTask?.id || document.getElementById('taskId').value;
+    
+    if (!taskId) {
+        summaryDiv.innerHTML = '<div style="color: red;">❌ Please save the task first to generate a summary</div>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/ai/task-summary/${taskId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: summaryType
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Format the summary nicely
+            const formattedSummary = formatTaskSummary(data.summary, summaryType);
+            summaryDiv.innerHTML = `
+                <div class="summary-result ${summaryType}">
+                    <div class="summary-header">
+                        ${summaryType === 'executive' ? '📊 Executive Summary' : '📋 Detailed Analysis'}
+                    </div>
+                    <div class="summary-body">
+                        ${formattedSummary}
+                    </div>
+                    <div class="summary-footer">
+                        Generated at ${new Date().toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+        } else {
+            summaryDiv.innerHTML = `<div style="color: red;">❌ Error: ${escapeHtml(data.error)}</div>`;
+        }
+    } catch (error) {
+        summaryDiv.innerHTML = `<div style="color: red;">❌ Error generating summary: ${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function formatTaskSummary(text, summaryType) {
+    if (!text) return '<p>No summary available</p>';
+    
+    // Escape HTML first
+    let formatted = escapeHtml(text);
+    
+    // Convert line breaks to paragraphs
+    let paragraphs = formatted.split(/\n\n+/);
+    
+    let html = '';
+    paragraphs.forEach(paragraph => {
+        if (paragraph.trim()) {
+            // Check if it's a numbered or bulleted list
+            if (/^\d+\.|^[-*•]/.test(paragraph.trim())) {
+                // Process as list
+                const lines = paragraph.split('\n');
+                html += '<ul class="summary-list">';
+                lines.forEach(line => {
+                    const cleanLine = line.replace(/^\d+\.\s*|^[-*•]\s*/, '').trim();
+                    if (cleanLine) {
+                        html += `<li>${cleanLine}</li>`;
+                    }
+                });
+                html += '</ul>';
+            } else {
+                // Regular paragraph
+                html += `<p class="summary-paragraph">${paragraph}</p>`;
+            }
+        }
+    });
+    
+    // Highlight important keywords
+    html = html.replace(/\b(OVERDUE|URGENT|CRITICAL|BLOCKED)\b/gi, '<span class="highlight-urgent">$1</span>');
+    html = html.replace(/\b(completed|done|finished|resolved)\b/gi, '<span class="highlight-completed">$1</span>');
+    html = html.replace(/\b(pending|in progress|ongoing)\b/gi, '<span class="highlight-pending">$1</span>');
+    
+    return html;
+}
+
+function copySummary() {
+    const summaryBody = document.querySelector('.summary-body');
+    if (summaryBody) {
+        const text = summaryBody.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copySummaryBtn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span style="margin-right: 5px;">✅</span> Copied!';
+            btn.style.background = '#27ae60';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+            }, 2000);
+        });
+    } else {
+        alert('Please generate a summary first');
+    }
 }
