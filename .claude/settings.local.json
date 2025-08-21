@@ -4,7 +4,8 @@
       "Bash(cp:*)",
       "Bash(dir:*)",
       "Bash(move:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

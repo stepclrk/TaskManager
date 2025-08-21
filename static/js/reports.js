@@ -2,9 +2,12 @@
 let currentReportData = [];
 let allTasks = [];
 let allObjectives = [];
+let allTopics = [];
 let progressChart = null;
 let statusChart = null;
 let typeChart = null;
+let topicsStatusChart = null;
+let topicsTaskChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadInitialData();
@@ -21,6 +24,10 @@ async function loadInitialData() {
         // Load objectives
         const objectivesResponse = await fetch('/api/topics');
         allObjectives = await objectivesResponse.json();
+        
+        // Load topics (projects)
+        const topicsResponse = await fetch('/api/projects');
+        allTopics = await topicsResponse.json();
     } catch (error) {
         console.error('Error loading data:', error);
     }
@@ -41,6 +48,12 @@ function setupEventListeners() {
     document.getElementById('copyOKRReportBtn').addEventListener('click', copyOKRReport);
     document.getElementById('exportOKRCSVBtn').addEventListener('click', exportOKRToCSV);
     document.getElementById('printOKRBtn').addEventListener('click', printOKRReport);
+    
+    // Topics report listeners
+    document.getElementById('generateTopicsReportBtn').addEventListener('click', generateTopicsReport);
+    document.getElementById('copyTopicsReportBtn').addEventListener('click', copyTopicsReport);
+    document.getElementById('exportTopicsCSVBtn').addEventListener('click', exportTopicsToCSV);
+    document.getElementById('printTopicsBtn').addEventListener('click', printTopicsReport);
 }
 
 function setupTabSwitching() {
@@ -61,6 +74,7 @@ function setupTabSwitching() {
             const tabName = this.dataset.tab;
             document.getElementById('tasksTab').style.display = tabName === 'tasks' ? 'block' : 'none';
             document.getElementById('objectivesTab').style.display = tabName === 'objectives' ? 'block' : 'none';
+            document.getElementById('topicsTab').style.display = tabName === 'topics' ? 'block' : 'none';
         });
     });
 }
@@ -847,4 +861,302 @@ function exportOKRToCSV() {
 
 function printOKRReport() {
     window.print();
+}
+
+// Topics Report Functions
+async function generateTopicsReport() {
+    const statusFilter = document.getElementById('topicStatus').value;
+    const dateRangeFilter = document.getElementById('topicDateRange').value;
+    
+    // Filter topics based on criteria
+    let filteredTopics = [...allTopics];
+    
+    // Apply status filter
+    if (statusFilter) {
+        filteredTopics = filteredTopics.filter(topic => topic.status === statusFilter);
+    }
+    
+    // Apply date range filter
+    const today = new Date();
+    if (dateRangeFilter === 'current') {
+        filteredTopics = filteredTopics.filter(topic => 
+            topic.status === 'Active' || topic.status === 'Planning'
+        );
+    } else if (dateRangeFilter === 'overdue') {
+        filteredTopics = filteredTopics.filter(topic => {
+            if (topic.target_date && topic.status !== 'Completed') {
+                return new Date(topic.target_date) < today;
+            }
+            return false;
+        });
+    } else if (dateRangeFilter === 'upcoming') {
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        filteredTopics = filteredTopics.filter(topic => {
+            if (topic.target_date) {
+                const targetDate = new Date(topic.target_date);
+                return targetDate >= today && targetDate <= thirtyDaysFromNow;
+            }
+            return false;
+        });
+    } else if (dateRangeFilter === 'completed') {
+        filteredTopics = filteredTopics.filter(topic => topic.status === 'Completed');
+    }
+    
+    // Calculate statistics
+    const stats = {
+        total: filteredTopics.length,
+        active: filteredTopics.filter(t => t.status === 'Active').length,
+        planning: filteredTopics.filter(t => t.status === 'Planning').length,
+        onHold: filteredTopics.filter(t => t.status === 'On Hold').length,
+        completed: filteredTopics.filter(t => t.status === 'Completed').length
+    };
+    
+    // Calculate total tasks across all topics
+    let totalTasks = 0;
+    for (const topic of filteredTopics) {
+        const topicTasks = allTasks.filter(task => task.project_id === topic.id);
+        topic.taskCount = topicTasks.length;
+        topic.completedTasks = topicTasks.filter(t => t.status === 'Completed').length;
+        topic.openTasks = topicTasks.filter(t => t.status === 'Open').length;
+        totalTasks += topicTasks.length;
+    }
+    
+    // Update summary dashboard
+    document.getElementById('totalTopicsCount').textContent = stats.total;
+    document.getElementById('activeTopicsCount').textContent = stats.active;
+    document.getElementById('planningTopicsCount').textContent = stats.planning;
+    document.getElementById('onHoldTopicsCount').textContent = stats.onHold;
+    document.getElementById('completedTopicsCount').textContent = stats.completed;
+    document.getElementById('totalTopicTasksCount').textContent = totalTasks;
+    
+    // Show dashboard
+    document.getElementById('topicsSummaryDashboard').style.display = 'block';
+    
+    // Create charts
+    createTopicsCharts(stats, filteredTopics);
+    
+    // Generate detailed report
+    generateTopicsDetailedReport(filteredTopics);
+    
+    // Show actions
+    document.getElementById('topicsReportActions').style.display = 'flex';
+}
+
+function createTopicsCharts(stats, topics) {
+    // Status distribution chart
+    const statusCtx = document.getElementById('topicsStatusChart').getContext('2d');
+    if (topicsStatusChart) {
+        topicsStatusChart.destroy();
+    }
+    topicsStatusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Planning', 'On Hold', 'Completed'],
+            datasets: [{
+                data: [stats.active, stats.planning, stats.onHold, stats.completed],
+                backgroundColor: ['#27ae60', '#f39c12', '#e67e22', '#95a5a6']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Task distribution chart
+    const taskCtx = document.getElementById('topicsTaskChart').getContext('2d');
+    if (topicsTaskChart) {
+        topicsTaskChart.destroy();
+    }
+    
+    // Get top 10 topics by task count
+    const topTopics = topics
+        .sort((a, b) => (b.taskCount || 0) - (a.taskCount || 0))
+        .slice(0, 10);
+    
+    topicsTaskChart = new Chart(taskCtx, {
+        type: 'bar',
+        data: {
+            labels: topTopics.map(t => t.title.substring(0, 15) + (t.title.length > 15 ? '...' : '')),
+            datasets: [{
+                label: 'Tasks',
+                data: topTopics.map(t => t.taskCount || 0),
+                backgroundColor: '#3498db'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function generateTopicsDetailedReport(topics) {
+    const reportContent = document.getElementById('topicsReportContent');
+    
+    if (topics.length === 0) {
+        reportContent.innerHTML = '<p>No topics found matching the selected criteria.</p>';
+        document.getElementById('topicsDetailedReport').style.display = 'block';
+        return;
+    }
+    
+    let html = `
+        <table class="report-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px; text-align: left;">Topic</th>
+                    <th style="padding: 12px; text-align: left;">Status</th>
+                    <th style="padding: 12px; text-align: left;">Target Date</th>
+                    <th style="padding: 12px; text-align: center;">Tasks</th>
+                    <th style="padding: 12px; text-align: center;">Open</th>
+                    <th style="padding: 12px; text-align: center;">Completed</th>
+                    <th style="padding: 12px; text-align: center;">Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    topics.forEach(topic => {
+        const progress = topic.taskCount > 0 
+            ? Math.round((topic.completedTasks / topic.taskCount) * 100) 
+            : 0;
+        const isOverdue = topic.target_date && new Date(topic.target_date) < new Date() && topic.status !== 'Completed';
+        
+        html += `
+            <tr style="border-bottom: 1px solid #dee2e6;">
+                <td style="padding: 12px;">
+                    <strong>${escapeHtml(topic.title)}</strong>
+                    ${topic.description ? `<br><small style="color: #6c757d;">${escapeHtml(topic.description.substring(0, 100))}${topic.description.length > 100 ? '...' : ''}</small>` : ''}
+                </td>
+                <td style="padding: 12px;">
+                    <span class="status-badge status-${topic.status.toLowerCase().replace(' ', '-')}" 
+                          style="padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">
+                        ${topic.status}
+                    </span>
+                </td>
+                <td style="padding: 12px; ${isOverdue ? 'color: #dc3545; font-weight: bold;' : ''}">
+                    ${topic.target_date || 'Not set'}
+                    ${isOverdue ? ' (Overdue)' : ''}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    ${topic.taskCount || 0}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    ${topic.openTasks || 0}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    ${topic.completedTasks || 0}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    <div style="background: #e9ecef; border-radius: 4px; overflow: hidden; height: 20px;">
+                        <div style="background: ${progress >= 75 ? '#28a745' : progress >= 50 ? '#ffc107' : '#17a2b8'}; 
+                                    width: ${progress}%; height: 100%; text-align: center; line-height: 20px; 
+                                    color: white; font-size: 0.75em;">
+                            ${progress}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    reportContent.innerHTML = html;
+    document.getElementById('topicsDetailedReport').style.display = 'block';
+}
+
+function copyTopicsReport() {
+    const reportContent = document.getElementById('topicsReportContent').innerText;
+    navigator.clipboard.writeText(reportContent).then(() => {
+        alert('Report copied to clipboard!');
+    });
+}
+
+function exportTopicsToCSV() {
+    const statusFilter = document.getElementById('topicStatus').value;
+    const dateRangeFilter = document.getElementById('topicDateRange').value;
+    
+    // Use the same filtering logic as generateTopicsReport
+    let filteredTopics = [...allTopics];
+    
+    if (statusFilter) {
+        filteredTopics = filteredTopics.filter(topic => topic.status === statusFilter);
+    }
+    
+    // Create CSV content
+    let csv = 'Topic,Description,Status,Target Date,Total Tasks,Open Tasks,Completed Tasks,Progress\n';
+    
+    filteredTopics.forEach(topic => {
+        const progress = topic.taskCount > 0 
+            ? Math.round((topic.completedTasks / topic.taskCount) * 100) 
+            : 0;
+        
+        csv += `"${topic.title || ''}",`;
+        csv += `"${(topic.description || '').replace(/"/g, '""')}",`;
+        csv += `"${topic.status || ''}",`;
+        csv += `"${topic.target_date || 'Not set'}",`;
+        csv += `${topic.taskCount || 0},`;
+        csv += `${topic.openTasks || 0},`;
+        csv += `${topic.completedTasks || 0},`;
+        csv += `${progress}%\n`;
+    });
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `topics_report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+}
+
+function printTopicsReport() {
+    window.print();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
 }

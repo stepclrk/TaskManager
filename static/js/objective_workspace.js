@@ -1,19 +1,19 @@
-// Topic Workspace functionality
-let currentTopic = null;
-let topicTasks = [];
+// Objective Workspace functionality
+let currentObjective = null;
+let objectiveTasks = [];
 let currentTask = null;
 let config = {};
 let keyResultCounter = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
-    const topicId = getTopicIdFromUrl();
-    if (topicId) {
-        loadTopic(topicId);
+    const objectiveId = getObjectiveIdFromUrl();
+    if (objectiveId) {
+        loadObjective(objectiveId);
         loadConfig();
     }
     
     document.getElementById('addTaskBtn').addEventListener('click', showAddTaskModal);
-    document.getElementById('editTopicBtn').addEventListener('click', showEditObjectiveModal);
+    document.getElementById('editObjectiveBtn').addEventListener('click', showEditObjectiveModal);
     document.getElementById('viewFilter').addEventListener('change', filterTasks);
     document.getElementById('taskForm').addEventListener('submit', saveTask);
     document.getElementById('editObjectiveForm').addEventListener('submit', saveObjective);
@@ -71,29 +71,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function getTopicIdFromUrl() {
+function getObjectiveIdFromUrl() {
     const pathParts = window.location.pathname.split('/');
     return pathParts[pathParts.length - 1];
 }
 
-async function loadTopic(topicId) {
+async function loadObjective(objectiveId) {
     try {
-        const response = await fetch(`/api/topics/${topicId}`);
+        const response = await fetch(`/api/topics/${objectiveId}`);
         if (!response.ok) {
-            window.location.href = '/topics';
+            window.location.href = '/objectives';
             return;
         }
         
-        currentTopic = await response.json();
-        displayTopicInfo();
+        currentObjective = await response.json();
+        displayObjectiveInfo();
         displayTasks();
         updateStats();
         
         // Also display OKR information if available
         displayOKRInfo();
     } catch (error) {
-        console.error('Error loading topic:', error);
-        window.location.href = '/topics';
+        console.error('Error loading objective:', error);
+        window.location.href = '/objectives';
     }
 }
 
@@ -120,44 +120,44 @@ function populateSelect(id, options) {
     }
 }
 
-function displayTopicInfo() {
-    document.getElementById('topicTitle').textContent = currentTopic.title;
-    document.getElementById('breadcrumbTitle').textContent = currentTopic.title;
-    document.getElementById('topicDescription').textContent = currentTopic.description || 'No description provided';
+function displayObjectiveInfo() {
+    document.getElementById('objectiveTitle').textContent = currentObjective.title;
+    document.getElementById('breadcrumbTitle').textContent = currentObjective.title;
+    document.getElementById('objectiveDescription').textContent = currentObjective.description || 'No description provided';
     
     // Set status badge
-    const statusElement = document.getElementById('topicStatus');
-    statusElement.textContent = currentTopic.status || 'Active';
-    statusElement.className = `topic-status-badge status-${(currentTopic.status || 'Active').toLowerCase().replace(' ', '-')}`;
+    const statusElement = document.getElementById('objectiveStatus');
+    statusElement.textContent = currentObjective.status || 'Active';
+    statusElement.className = `objective-status-badge status-${(currentObjective.status || 'Active').toLowerCase().replace(' ', '-')}`;
     
     // Set dates
-    document.getElementById('targetDate').textContent = currentTopic.target_date || 'Not set';
-    document.getElementById('createdDate').textContent = formatDate(currentTopic.created_at);
-    document.getElementById('updatedDate').textContent = formatDate(currentTopic.updated_at);
+    document.getElementById('targetDate').textContent = currentObjective.target_date || 'Not set';
+    document.getElementById('createdDate').textContent = formatDate(currentObjective.created_at);
+    document.getElementById('updatedDate').textContent = formatDate(currentObjective.updated_at);
     
     // Load notes
     const notesTextarea = document.getElementById('objectiveNotes');
-    notesTextarea.value = currentTopic.notes || '';
-    originalNotes = currentTopic.notes || '';
+    notesTextarea.value = currentObjective.notes || '';
+    originalNotes = currentObjective.notes || '';
     updateCharCount();
     
     // Update page title
-    document.title = `${currentTopic.title} - Objective Workspace`;
+    document.title = `${currentObjective.title} - Objective Workspace`;
 }
 
 function displayTasks() {
     const filter = document.getElementById('viewFilter').value;
-    topicTasks = currentTopic.tasks || [];
+    objectiveTasks = currentObjective.tasks || [];
     
-    let filteredTasks = topicTasks;
+    let filteredTasks = objectiveTasks;
     
     if (filter !== 'all') {
         if (filter === 'open') {
-            filteredTasks = topicTasks.filter(t => t.status === 'Open');
+            filteredTasks = objectiveTasks.filter(t => t.status === 'Open');
         } else if (filter === 'in-progress') {
-            filteredTasks = topicTasks.filter(t => t.status === 'In Progress');
+            filteredTasks = objectiveTasks.filter(t => t.status === 'In Progress');
         } else if (filter === 'completed') {
-            filteredTasks = topicTasks.filter(t => t.status === 'Completed');
+            filteredTasks = objectiveTasks.filter(t => t.status === 'Completed');
         }
     }
     
@@ -188,7 +188,7 @@ function displayTasks() {
                 </div>
                 <div class="task-actions">
                     <button class="edit-btn" onclick="editTask('${task.id}')">Edit</button>
-                    <button class="delete-btn" onclick="removeTaskFromTopic('${task.id}')">Remove</button>
+                    <button class="delete-btn" onclick="removeTaskFromObjective('${task.id}')">Remove</button>
                 </div>
             </div>
         `;
@@ -196,7 +196,7 @@ function displayTasks() {
 }
 
 function updateStats() {
-    const tasks = currentTopic.tasks || [];
+    const tasks = currentObjective.tasks || [];
     const totalTasks = tasks.length;
     const openTasks = tasks.filter(t => t.status === 'Open').length;
     const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
@@ -224,7 +224,7 @@ function showAddTaskModal() {
     document.getElementById('taskForm').reset();
     
     // Pre-set the topic ID
-    document.getElementById('taskTopic').value = currentTopic.id;
+    document.getElementById('taskObjective').value = currentObjective.id;
     
     // Set default status
     document.getElementById('status').value = config.statuses ? config.statuses[0] : 'Open';
@@ -235,12 +235,12 @@ function showAddTaskModal() {
 
 async function editTask(taskId) {
     // Find the task in our local array
-    currentTask = topicTasks.find(t => t.id === taskId);
+    currentTask = objectiveTasks.find(t => t.id === taskId);
     if (!currentTask) return;
     
     document.getElementById('modalTitle').textContent = 'Edit Task';
     document.getElementById('taskId').value = currentTask.id;
-    document.getElementById('taskTopic').value = currentTopic.id;
+    document.getElementById('taskObjective').value = currentObjective.id;
     document.getElementById('title').value = currentTask.title || '';
     document.getElementById('customerName').value = currentTask.customer_name || '';
     document.getElementById('description').value = currentTask.description || '';
@@ -254,7 +254,7 @@ async function editTask(taskId) {
     document.getElementById('taskModal').style.display = 'block';
 }
 
-async function removeTaskFromTopic(taskId) {
+async function removeTaskFromObjective(taskId) {
     if (!confirm('Remove this task from the objective? The task will not be deleted.')) {
         return;
     }
@@ -264,7 +264,7 @@ async function removeTaskFromTopic(taskId) {
         const taskResponse = await fetch(`/api/tasks/${taskId}`);
         const task = await taskResponse.json();
         
-        // Remove topic association
+        // Remove objective association
         delete task.topic_id;
         
         // Update the task
@@ -277,31 +277,31 @@ async function removeTaskFromTopic(taskId) {
         });
         
         if (updateResponse.ok) {
-            // Reload topic to refresh tasks list
-            await loadTopic(currentTopic.id);
+            // Reload objective to refresh tasks list
+            await loadObjective(currentObjective.id);
         } else {
             alert('Error removing task from objective');
         }
     } catch (error) {
-        console.error('Error removing task from topic:', error);
+        console.error('Error removing task from objective:', error);
         alert('Error removing task from objective');
     }
 }
 
 function showEditObjectiveModal() {
     // Populate the edit form with current objective data
-    document.getElementById('objTitle').value = currentTopic.title || '';
-    document.getElementById('objDescription').value = currentTopic.description || '';
-    document.getElementById('objType').value = currentTopic.objective_type || 'aspirational';
-    document.getElementById('objPeriod').value = currentTopic.period || 'Q1';
-    document.getElementById('objStatus').value = currentTopic.status || 'Active';
-    document.getElementById('objTargetDate').value = currentTopic.target_date || '';
-    document.getElementById('objConfidence').value = (currentTopic.confidence || 0.5) * 100;
-    document.getElementById('objConfidenceLabel').textContent = Math.round((currentTopic.confidence || 0.5) * 100) + '%';
-    document.getElementById('objOwner').value = currentTopic.owner || '';
+    document.getElementById('objTitle').value = currentObjective.title || '';
+    document.getElementById('objDescription').value = currentObjective.description || '';
+    document.getElementById('objType').value = currentObjective.objective_type || 'aspirational';
+    document.getElementById('objPeriod').value = currentObjective.period || 'Q1';
+    document.getElementById('objStatus').value = currentObjective.status || 'Active';
+    document.getElementById('objTargetDate').value = currentObjective.target_date || '';
+    document.getElementById('objConfidence').value = (currentObjective.confidence || 0.5) * 100;
+    document.getElementById('objConfidenceLabel').textContent = Math.round((currentObjective.confidence || 0.5) * 100) + '%';
+    document.getElementById('objOwner').value = currentObjective.owner || '';
     
     // Populate key results
-    populateKeyResults(currentTopic.key_results || []);
+    populateKeyResults(currentObjective.key_results || []);
     
     // Show the modal
     document.getElementById('editObjectiveModal').style.display = 'block';
@@ -335,11 +335,11 @@ async function saveObjective(e) {
         owner: document.getElementById('objOwner').value,
         key_results: keyResults,  // Use the updated key results
         okr_score: okrScore,  // Include the calculated score
-        notes: currentTopic.notes || ''  // Preserve notes
+        notes: currentObjective.notes || ''  // Preserve notes
     };
     
     try {
-        const response = await fetch(`/api/topics/${currentTopic.id}`, {
+        const response = await fetch(`/api/topics/${currentObjective.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -350,7 +350,7 @@ async function saveObjective(e) {
         if (response.ok) {
             closeEditObjectiveModal();
             // Reload the topic to refresh the display
-            await loadTopic(currentTopic.id);
+            await loadObjective(currentObjective.id);
             showNotification('Objective updated successfully');
         } else {
             alert('Error updating objective');
@@ -371,10 +371,10 @@ async function saveNotes(isAutoSave = false) {
     autoSaveIndicator.style.display = 'none';
     
     // Update the current topic object
-    currentTopic.notes = notes;
+    currentObjective.notes = notes;
     
     try {
-        const response = await fetch(`/api/topics/${currentTopic.id}/notes`, {
+        const response = await fetch(`/api/topics/${currentObjective.id}/notes`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -573,7 +573,7 @@ async function saveTask(e) {
         status: document.getElementById('status').value,
         assigned_to: document.getElementById('assignedTo').value,
         tags: document.getElementById('tags').value,
-        topic_id: currentTopic.id  // Always assign to current topic
+        topic_id: currentObjective.id  // Always assign to current topic
     };
     
     try {
@@ -592,7 +592,7 @@ async function saveTask(e) {
         if (response.ok) {
             closeModal();
             // Reload the topic to refresh the task list
-            await loadTopic(currentTopic.id);
+            await loadObjective(currentObjective.id);
             
             // Show success message
             showNotification(taskId ? 'Task updated successfully' : 'Task added successfully');
@@ -640,16 +640,16 @@ function displayOKRInfo() {
     }
     
     // Add OKR information if available
-    if (currentTopic.key_results && currentTopic.key_results.length > 0) {
+    if (currentObjective.key_results && currentObjective.key_results.length > 0) {
         const headerDiv = document.querySelector('.workspace-header');
         
         // Calculate OKR score
         let totalProgress = 0;
-        currentTopic.key_results.forEach(kr => {
+        currentObjective.key_results.forEach(kr => {
             totalProgress += kr.progress || 0;
         });
-        const okrScore = currentTopic.key_results.length > 0 ? 
-            totalProgress / currentTopic.key_results.length : 0;
+        const okrScore = currentObjective.key_results.length > 0 ? 
+            totalProgress / currentObjective.key_results.length : 0;
         
         // Create OKR section
         const okrSection = document.createElement('div');
@@ -663,15 +663,15 @@ function displayOKRInfo() {
             <h3 style="margin-bottom: 15px; color: #2c3e50;">Key Results</h3>
             <div style="margin-bottom: 10px;">
                 <strong>Overall Progress:</strong> ${Math.round(okrScore * 100)}%
-                ${currentTopic.confidence ? ` | <strong>Confidence:</strong> ${Math.round(currentTopic.confidence * 100)}%` : ''}
-                ${currentTopic.period ? ` | <strong>Period:</strong> ${currentTopic.period}` : ''}
-                ${currentTopic.objective_type ? ` | <strong>Type:</strong> ${currentTopic.objective_type}` : ''}
+                ${currentObjective.confidence ? ` | <strong>Confidence:</strong> ${Math.round(currentObjective.confidence * 100)}%` : ''}
+                ${currentObjective.period ? ` | <strong>Period:</strong> ${currentObjective.period}` : ''}
+                ${currentObjective.objective_type ? ` | <strong>Type:</strong> ${currentObjective.objective_type}` : ''}
             </div>
         `;
         
         // Add each key result
         okrHtml += '<div style="margin-top: 15px;">';
-        currentTopic.key_results.forEach(kr => {
+        currentObjective.key_results.forEach(kr => {
             const progress = (kr.progress || 0) * 100;
             const progressClass = progress < 30 ? 'danger' : progress < 70 ? 'warning' : 'success';
             

@@ -31,7 +31,7 @@ function setupEventListeners() {
 
 async function loadTopics() {
     try {
-        const response = await fetch('/api/topics');
+        const response = await fetch('/api/projects');
         if (response.ok) {
             allTopics = await response.json();
             await loadTaskCounts();
@@ -155,7 +155,7 @@ function renderTopics() {
 }
 
 function navigateToWorkspace(topicId) {
-    window.location.href = `/topics/${topicId}`;
+    window.location.href = `/projects/${topicId}`;
 }
 
 function openModal(topicId = null) {
@@ -204,7 +204,7 @@ async function handleSubmit(event) {
     };
     
     try {
-        const url = topicId ? `/api/topics/${topicId}` : '/api/topics';
+        const url = topicId ? `/api/projects/${topicId}` : '/api/projects';
         const method = topicId ? 'PUT' : 'POST';
         
         const response = await fetch(url, {

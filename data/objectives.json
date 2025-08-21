@@ -10,18 +10,18 @@
     "owner": "",
     "key_results": [
       {
-        "current_value": 0,
-        "id": "97442866-4c75-4e86-87ec-e877e7f561a7",
-        "progress": 0,
+        "title": "Acheive 2.5 million in incremental revenue",
         "start_value": 0,
-        "status": "Not Started",
         "target_value": 2500000,
-        "title": "Acheive 2.5 million in incremental revenue"
+        "current_value": 100000,
+        "progress": 0.04,
+        "status": "In Progress",
+        "id": "97442866-4c75-4e86-87ec-e877e7f561a7"
       }
     ],
+    "okr_score": 0.04,
     "notes": "tyrtyurtryurtuyrtyu",
     "id": "29a08eb4-e939-4a0a-ad5a-5b35a6f86888",
-    "updated_at": "2025-08-21T18:48:49.126669",
-    "okr_score": 0.0
+    "updated_at": "2025-08-21T19:57:14.269139"
   }
 ]

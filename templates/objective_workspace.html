@@ -147,13 +147,13 @@
             margin-bottom: 15px;
         }
         
-        .topic-title-large {
+        .objective-title-large {
             font-size: 2em;
             color: #2c3e50;
             font-weight: bold;
         }
         
-        .topic-status-badge {
+        .objective-status-badge {
             display: inline-block;
             padding: 6px 15px;
             border-radius: 20px;
@@ -341,9 +341,9 @@
             <h1>Task Manager</h1>
             <ul class="nav-menu">
                 <li><a href="/">Dashboard</a></li>
-                <li><a href="/topics" class="active">Objectives</a></li>
+                <li><a href="/objectives" class="active">Objectives</a></li>
+                <li><a href="/projects">Topics</a></li>
                 <li><a href="/tasks">Tasks</a></li>
-                <li><a href="/calendar">Calendar</a></li>
                 <li><a href="/reports">Reports</a></li>
                 <li><a href="/settings">Settings</a></li>
             </ul>
@@ -352,7 +352,7 @@
 
     <div class="container">
         <div class="breadcrumb">
-            <a href="/topics">Objectives</a>
+            <a href="/objectives">Objectives</a>
             <span>›</span>
             <span id="breadcrumbTitle">Loading...</span>
         </div>
@@ -364,15 +364,15 @@
                 <div class="workspace-header">
                     <div class="workspace-title">
                         <div>
-                            <h1 class="topic-title-large" id="topicTitle">Loading...</h1>
-                            <span id="topicStatus" class="topic-status-badge">-</span>
+                            <h1 class="objective-title-large" id="objectiveTitle">Loading...</h1>
+                            <span id="objectiveStatus" class="objective-status-badge">-</span>
                         </div>
                         <div>
-                            <button id="editTopicBtn" class="btn btn-secondary">Edit Objective</button>
+                            <button id="editObjectiveBtn" class="btn btn-secondary">Edit Objective</button>
                         </div>
                     </div>
                     
-                    <div class="workspace-description" id="topicDescription">
+                    <div class="workspace-description" id="objectiveDescription">
                         Loading description...
                     </div>
                     
@@ -552,7 +552,7 @@
             <h2 id="modalTitle">Add Task</h2>
             <form id="taskForm">
                 <input type="hidden" id="taskId">
-                <input type="hidden" id="taskTopic">
+                <input type="hidden" id="taskObjective">
                 
                 <div class="form-group">
                     <label for="title">Title *</label>
@@ -611,6 +611,6 @@
         </div>
     </div>
 
-    <script src="/static/js/topic_workspace.js"></script>
+    <script src="/static/js/objective_workspace.js"></script>
 </body>
 </html>

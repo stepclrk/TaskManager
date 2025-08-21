@@ -180,9 +180,9 @@
             <h1>Task Manager</h1>
             <ul class="nav-menu">
                 <li><a href="/">Dashboard</a></li>
-                <li><a href="/topics">Objectives</a></li>
+                <li><a href="/objectives">Objectives</a></li>
+                <li><a href="/projects">Topics</a></li>
                 <li><a href="/tasks">Tasks</a></li>
-                <li><a href="/calendar">Calendar</a></li>
                 <li><a href="/reports" class="active">Reports</a></li>
                 <li><a href="/settings">Settings</a></li>
             </ul>
@@ -196,6 +196,7 @@
         <div class="report-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
             <button class="tab-btn active" data-tab="tasks" style="padding: 10px 20px; background: white; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: 600;">Task Reports</button>
             <button class="tab-btn" data-tab="objectives" style="padding: 10px 20px; background: white; border: none; border-bottom: 3px solid transparent; cursor: pointer;">Objectives & OKRs</button>
+            <button class="tab-btn" data-tab="topics" style="padding: 10px 20px; background: white; border: none; border-bottom: 3px solid transparent; cursor: pointer;">Topics (Projects)</button>
         </div>
         
         <!-- Tasks Report Tab -->
@@ -363,45 +364,32 @@
                 </div>
                 
                 <!-- Charts Container -->
-                <div class="charts-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
+                <div class="charts-grid" style="display: flex; gap: 20px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap;">
                     <!-- Progress Distribution Chart -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <h5 style="margin-bottom: 10px; font-size: 0.95em; color: #2c3e50;">OKR Progress Distribution</h5>
-                        <div style="height: 180px; position: relative;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 300px;">
+                        <h5 style="margin-top: 0; margin-bottom: 15px; font-size: 1em; color: #2c3e50;">OKR Progress Distribution</h5>
+                        <div style="height: 200px; position: relative;">
                             <canvas id="progressChart"></canvas>
                         </div>
                     </div>
                     
                     <!-- Status Breakdown Chart -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <h5 style="margin-bottom: 10px; font-size: 0.95em; color: #2c3e50;">Status Breakdown</h5>
-                        <div style="height: 180px; position: relative;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 300px;">
+                        <h5 style="margin-top: 0; margin-bottom: 15px; font-size: 1em; color: #2c3e50;">Status Breakdown</h5>
+                        <div style="height: 200px; position: relative;">
                             <canvas id="statusChart"></canvas>
                         </div>
                     </div>
                     
                     <!-- Type Distribution Chart -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <h5 style="margin-bottom: 10px; font-size: 0.95em; color: #2c3e50;">Objective Types</h5>
-                        <div style="height: 180px; position: relative;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 300px;">
+                        <h5 style="margin-top: 0; margin-bottom: 15px; font-size: 1em; color: #2c3e50;">Objective Types</h5>
+                        <div style="height: 200px; position: relative;">
                             <canvas id="typeChart"></canvas>
                         </div>
                     </div>
                 </div>
                 
-                <style>
-                    @media (max-width: 1200px) {
-                        .charts-grid {
-                            grid-template-columns: repeat(2, 1fr) !important;
-                        }
-                    }
-                    
-                    @media (max-width: 768px) {
-                        .charts-grid {
-                            grid-template-columns: 1fr !important;
-                        }
-                    }
-                </style>
             </div>
             
             <!-- Detailed OKR Report -->
@@ -417,6 +405,101 @@
                 <button id="copyOKRReportBtn" class="btn btn-info">📋 Copy Report</button>
                 <button id="exportOKRCSVBtn" class="btn btn-success">📊 Export CSV</button>
                 <button id="printOKRBtn" class="btn btn-secondary">🖨️ Print Report</button>
+            </div>
+        </div>
+        
+        <!-- Topics (Projects) Report Tab -->
+        <div class="report-container tab-content" id="topicsTab" style="display: none;">
+            <!-- Topics Report Filters -->
+            <div class="report-filters" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="filter-group">
+                        <label for="topicStatus">Status</label>
+                        <select id="topicStatus">
+                            <option value="">All Statuses</option>
+                            <option value="Planning">Planning</option>
+                            <option value="Active">Active</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="topicDateRange">Date Range</label>
+                        <select id="topicDateRange">
+                            <option value="">All Time</option>
+                            <option value="current">Current Topics</option>
+                            <option value="overdue">Overdue Topics</option>
+                            <option value="upcoming">Upcoming (Next 30 days)</option>
+                            <option value="completed">Recently Completed</option>
+                        </select>
+                    </div>
+                    
+                    <button id="generateTopicsReportBtn" class="btn btn-primary">Generate Topics Report</button>
+                    <button id="exportTopicsPDFBtn" class="btn btn-secondary" style="display: none;">📄 Export PDF</button>
+                </div>
+            </div>
+            
+            <!-- Topics Summary Dashboard -->
+            <div id="topicsSummaryDashboard" style="display: none; margin-bottom: 20px;">
+                <!-- Overall Statistics -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Total Topics</h4>
+                        <div id="totalTopicsCount" style="font-size: 2.5em; font-weight: bold; color: #2c3e50;">0</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Active Topics</h4>
+                        <div id="activeTopicsCount" style="font-size: 2.5em; font-weight: bold; color: #27ae60;">0</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Planning</h4>
+                        <div id="planningTopicsCount" style="font-size: 2.5em; font-weight: bold; color: #f39c12;">0</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">On Hold</h4>
+                        <div id="onHoldTopicsCount" style="font-size: 2.5em; font-weight: bold; color: #e67e22;">0</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Completed</h4>
+                        <div id="completedTopicsCount" style="font-size: 2.5em; font-weight: bold; color: #95a5a6;">0</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Total Tasks</h4>
+                        <div id="totalTopicTasksCount" style="font-size: 2.5em; font-weight: bold; color: #3498db;">0</div>
+                    </div>
+                </div>
+                
+                <!-- Charts -->
+                <div class="charts-grid" style="display: flex; gap: 20px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 350px;">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">Topics by Status</h4>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="topicsStatusChart"></canvas>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 350px;">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">Task Distribution</h4>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="topicsTaskChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detailed Topics Report -->
+            <div id="topicsDetailedReport" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Topics (Projects) Report</h3>
+                <div id="topicsReportContent">
+                    <!-- Report content will be generated here -->
+                </div>
+            </div>
+            
+            <!-- Export Actions -->
+            <div class="report-actions" id="topicsReportActions" style="display: none; margin-top: 20px;">
+                <button id="copyTopicsReportBtn" class="btn btn-info">📋 Copy Report</button>
+                <button id="exportTopicsCSVBtn" class="btn btn-success">📊 Export CSV</button>
+                <button id="printTopicsBtn" class="btn btn-secondary">🖨️ Print Report</button>
             </div>
         </div>
     </div>

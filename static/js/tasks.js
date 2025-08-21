@@ -2,6 +2,7 @@ let allTasks = [];
 let currentTask = null;
 let config = {};
 let topics = [];
+let projects = [];
 window.hasApiKey = false;
 
 async function checkApiKey() {
@@ -36,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkApiKey();
     loadConfig();
     loadTopics();
+    loadProjects();
     loadTasks().then(() => {
         // Check if we need to open a specific task
         const taskIdToOpen = sessionStorage.getItem('openTaskId');
@@ -55,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showAddTaskModal();
             // Pre-select the topic
             setTimeout(() => {
-                const topicSelect = document.getElementById('taskTopic');
+                const topicSelect = document.getElementById('taskObjective');
                 if (topicSelect) {
                     topicSelect.value = newTaskTopicId;
                 }
@@ -156,14 +158,36 @@ async function loadTopics() {
     }
 }
 
+async function loadProjects() {
+    try {
+        const response = await fetch('/api/projects');
+        projects = await response.json();
+        populateProjectDropdown();
+    } catch (error) {
+        console.error('Error loading projects:', error);
+    }
+}
+
 function populateTopicDropdown() {
-    const topicSelect = document.getElementById('taskTopic');
+    const topicSelect = document.getElementById('taskObjective');
     if (!topicSelect) return;
     
     topicSelect.innerHTML = '<option value="">No Objective</option>';
     topics.forEach(topic => {
         if (topic.status !== 'Completed') {
             topicSelect.innerHTML += `<option value="${topic.id}">${escapeHtml(topic.title)}</option>`;
+        }
+    });
+}
+
+function populateProjectDropdown() {
+    const projectSelect = document.getElementById('taskProject');
+    if (!projectSelect) return;
+    
+    projectSelect.innerHTML = '<option value="">No Topic</option>';
+    projects.forEach(project => {
+        if (project.status !== 'Completed') {
+            projectSelect.innerHTML += `<option value="${project.id}">${escapeHtml(project.title)}</option>`;
         }
     });
 }
@@ -355,7 +379,7 @@ function showAddTaskModal() {
     currentTask = null;
     document.getElementById('modalTitle').textContent = 'Add Task';
     document.getElementById('taskForm').reset();
-    document.getElementById('taskTopic').value = ''; // Clear topic selection
+    document.getElementById('taskObjective').value = ''; // Clear topic selection
     document.getElementById('taskModal').style.display = 'block';
     
     // Update AI button visibility
@@ -404,7 +428,8 @@ function editTask(taskId) {
     document.getElementById('status').value = currentTask.status || config.statuses[0];
     document.getElementById('assignedTo').value = currentTask.assigned_to || '';
     document.getElementById('tags').value = currentTask.tags || '';
-    document.getElementById('taskTopic').value = currentTask.topic_id || '';
+    document.getElementById('taskObjective').value = currentTask.topic_id || '';
+    document.getElementById('taskProject').value = currentTask.project_id || '';
     
     document.getElementById('taskModal').style.display = 'block';
 }
@@ -422,7 +447,8 @@ async function saveTask(e) {
         status: document.getElementById('status').value,
         assigned_to: document.getElementById('assignedTo').value,
         tags: document.getElementById('tags').value,
-        topic_id: document.getElementById('taskTopic').value || null
+        topic_id: document.getElementById('taskObjective').value || null,
+        project_id: document.getElementById('taskProject').value || null
     };
     
     try {

@@ -6,14 +6,14 @@
     <title>Task Manager - Objectives</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .topics-container {
+        .objectives-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
         
-        .topic-card {
+        .objective-card {
             background: white;
             border-radius: 8px;
             padding: 20px;
@@ -23,26 +23,26 @@
             position: relative;
         }
         
-        .topic-card:hover {
+        .objective-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
-        .topic-header {
+        .objective-header {
             display: flex;
             justify-content: space-between;
             align-items: start;
             margin-bottom: 15px;
         }
         
-        .topic-title {
+        .objective-title {
             font-size: 1.3em;
             font-weight: bold;
             color: #2c3e50;
             margin-bottom: 5px;
         }
         
-        .topic-status {
+        .objective-status {
             display: inline-block;
             padding: 4px 10px;
             border-radius: 12px;
@@ -70,7 +70,7 @@
             color: #616161; 
         }
         
-        .topic-description {
+        .objective-description {
             color: #666;
             margin: 10px 0;
             line-height: 1.5;
@@ -79,7 +79,7 @@
             text-overflow: ellipsis;
         }
         
-        .topic-meta {
+        .objective-meta {
             display: flex;
             justify-content: space-between;
             margin-top: 15px;
@@ -87,7 +87,7 @@
             border-top: 1px solid #e0e0e0;
         }
         
-        .topic-stats {
+        .objective-stats {
             display: flex;
             gap: 20px;
         }
@@ -108,7 +108,7 @@
             color: #2c3e50;
         }
         
-        .topic-date {
+        .objective-date {
             display: flex;
             align-items: center;
             gap: 5px;
@@ -116,7 +116,7 @@
             color: #666;
         }
         
-        .topic-actions {
+        .objective-actions {
             position: absolute;
             top: 20px;
             right: 20px;
@@ -124,7 +124,7 @@
             gap: 5px;
         }
         
-        .topic-actions button {
+        .objective-actions button {
             padding: 5px 10px;
             border: none;
             border-radius: 4px;
@@ -133,25 +133,25 @@
             transition: background 0.2s;
         }
         
-        .edit-topic-btn {
+        .edit-objective-btn {
             background: #3498db;
             color: white;
         }
         
-        .edit-topic-btn:hover {
+        .edit-objective-btn:hover {
             background: #2980b9;
         }
         
-        .delete-topic-btn {
+        .delete-objective-btn {
             background: #e74c3c;
             color: white;
         }
         
-        .delete-topic-btn:hover {
+        .delete-objective-btn:hover {
             background: #c0392b;
         }
         
-        .add-topic-card {
+        .add-objective-card {
             background: #f8f9fa;
             border: 2px dashed #bdc3c7;
             display: flex;
@@ -163,18 +163,18 @@
             transition: all 0.2s;
         }
         
-        .add-topic-card:hover {
+        .add-objective-card:hover {
             border-color: #3498db;
             background: #ecf0f1;
         }
         
-        .add-topic-icon {
+        .add-objective-icon {
             font-size: 3em;
             color: #bdc3c7;
             margin-bottom: 10px;
         }
         
-        .add-topic-text {
+        .add-objective-text {
             color: #7f8c8d;
             font-weight: 600;
         }
@@ -281,9 +281,9 @@
             <h1>Task Manager</h1>
             <ul class="nav-menu">
                 <li><a href="/">Dashboard</a></li>
-                <li><a href="/topics" class="active">Objectives</a></li>
+                <li><a href="/objectives" class="active">Objectives</a></li>
+                <li><a href="/projects">Topics</a></li>
                 <li><a href="/tasks">Tasks</a></li>
-                <li><a href="/calendar">Calendar</a></li>
                 <li><a href="/reports">Reports</a></li>
                 <li><a href="/settings">Settings</a></li>
             </ul>
@@ -296,40 +296,41 @@
                 <h2>Objectives & Key Results (OKRs)</h2>
                 <p style="color: #666; margin-top: 5px;">Set ambitious goals and track measurable outcomes</p>
             </div>
-            <button id="addTopicBtn" class="btn btn-primary">+ New Objective</button>
+            <button id="addObjectiveBtn" class="btn btn-primary">+ New Objective</button>
         </div>
 
-        <div id="topicsContainer" class="topics-container">
+        <div id="objectivesContainer" class="objectives-container">
             <!-- Topics will be loaded here -->
         </div>
     </div>
 
-    <!-- Topic Modal -->
-    <div id="topicModal" class="modal">
+    <!-- Objective Modal -->
+    <div id="objectiveModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
-            <span class="close" onclick="closeTopicModal()">&times;</span>
+            <span class="close" onclick="closeObjectiveModal()">&times;</span>
             <h2 id="modalTitle">New Objective</h2>
-            <form id="topicForm">
+            <form id="objectiveForm">
+                <input type="hidden" id="objectiveId">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="topicTitle">
+                        <label for="objectiveTitle">
                             Objective *
                             <button type="button" id="enhanceObjectiveBtn" class="btn btn-sm" style="margin-left: 10px; padding: 2px 10px; font-size: 0.85em; display: none;">
                                 ✨ Enhance with AI
                             </button>
                         </label>
-                        <input type="text" id="topicTitle" placeholder="What do you want to achieve?" required>
+                        <input type="text" id="objectiveTitle" placeholder="What do you want to achieve?" required>
                         <small style="color: #666;">A qualitative goal that is ambitious and inspirational</small>
                     </div>
                     
                     <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="topicDescription">
+                        <label for="objectiveDescription">
                             Why this matters
                             <button type="button" id="enhanceWhyBtn" class="btn btn-sm" style="margin-left: 10px; padding: 2px 10px; font-size: 0.85em; display: none;">
                                 ✨ Enhance with AI
                             </button>
                         </label>
-                        <textarea id="topicDescription" placeholder="Explain the importance and impact of this objective"></textarea>
+                        <textarea id="objectiveDescription" placeholder="Explain the importance and impact of this objective"></textarea>
                     </div>
                     
                     <div class="form-group">
@@ -341,8 +342,8 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="topicPeriod">Period</label>
-                        <select id="topicPeriod">
+                        <label for="objectivePeriod">Period</label>
+                        <select id="objectivePeriod">
                             <option value="Q1">Q1 (Jan-Mar)</option>
                             <option value="Q2">Q2 (Apr-Jun)</option>
                             <option value="Q3">Q3 (Jul-Sep)</option>
@@ -352,8 +353,8 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="topicStatus">Status</label>
-                        <select id="topicStatus">
+                        <label for="objectiveStatus">Status</label>
+                        <select id="objectiveStatus">
                             <option value="Planning">Planning</option>
                             <option value="Active" selected>Active</option>
                             <option value="At Risk">At Risk</option>
@@ -363,19 +364,19 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="topicTargetDate">Target Date</label>
-                        <input type="date" id="topicTargetDate">
+                        <label for="objectiveTargetDate">Target Date</label>
+                        <input type="date" id="objectiveTargetDate">
                     </div>
                     
                     <div class="form-group">
-                        <label for="topicConfidence">Confidence Level</label>
-                        <input type="range" id="topicConfidence" min="0" max="100" value="50" oninput="updateConfidenceLabel(this.value)">
+                        <label for="objectiveConfidence">Confidence Level</label>
+                        <input type="range" id="objectiveConfidence" min="0" max="100" value="50" oninput="updateConfidenceLabel(this.value)">
                         <span id="confidenceLabel">50%</span>
                     </div>
                     
                     <div class="form-group">
-                        <label for="topicOwner">Owner</label>
-                        <input type="text" id="topicOwner" placeholder="Who is responsible?">
+                        <label for="objectiveOwner">Owner</label>
+                        <input type="text" id="objectiveOwner" placeholder="Who is responsible?">
                     </div>
                 </div>
                 
@@ -388,7 +389,7 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeTopicModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeObjectiveModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Objective</button>
                 </div>
             </form>
@@ -485,6 +486,54 @@
         }
     </style>
 
-    <script src="/static/js/topics.js"></script>
+    <script src="/static/js/objectives.js"></script>
+    <script>
+        // OKR-specific functions
+        function updateConfidenceLabel(value) {
+            document.getElementById('confidenceLabel').textContent = value + '%';
+        }
+        
+        function addKeyResult() {
+            const krList = document.getElementById('keyResultsList');
+            const krId = 'kr-' + Date.now();
+            
+            const krItem = document.createElement('div');
+            krItem.className = 'key-result-item';
+            krItem.id = krId;
+            krItem.innerHTML = `
+                <button type="button" class="remove-kr-btn" onclick="removeKeyResult('${krId}')">Remove</button>
+                <input type="text" placeholder="Key Result title (e.g., Increase revenue by 25%)" class="kr-title" required>
+                <div class="kr-metrics">
+                    <div>
+                        <label>Start Value</label>
+                        <input type="number" placeholder="0" class="kr-start" value="0">
+                    </div>
+                    <div>
+                        <label>Current Value</label>
+                        <input type="number" placeholder="0" class="kr-current" value="0">
+                    </div>
+                    <div>
+                        <label>Target Value</label>
+                        <input type="number" placeholder="100" class="kr-target" required>
+                    </div>
+                </div>
+            `;
+            
+            krList.appendChild(krItem);
+        }
+        
+        function removeKeyResult(krId) {
+            const krItem = document.getElementById(krId);
+            if (krItem) {
+                krItem.remove();
+            }
+        }
+        
+        function closeObjectiveModal() {
+            document.getElementById('objectiveModal').style.display = 'none';
+            document.getElementById('objectiveForm').reset();
+            document.getElementById('keyResultsList').innerHTML = '';
+        }
+    </script>
 </body>
 </html>

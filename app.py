@@ -23,6 +23,7 @@ ATTACHMENTS_DIR = 'data/attachments'
 DASHBOARD_LAYOUTS_FILE = 'data/dashboard_layouts.json'
 AI_SUMMARY_CACHE_FILE = 'data/ai_summary_cache.json'
 TOPICS_FILE = 'data/objectives.json'
+PROJECTS_FILE = 'data/projects.json'
 
 def load_tasks():
     if os.path.exists(DATA_FILE):
@@ -117,16 +118,27 @@ def save_ai_summary_cache(summary, include_completed_cancelled=False):
     with open(AI_SUMMARY_CACHE_FILE, 'w') as f:
         json.dump(cache_data, f, indent=2)
 
-def load_topics():
+def load_objectives():
     if os.path.exists(TOPICS_FILE):
         with open(TOPICS_FILE, 'r') as f:
             return json.load(f)
     return []
 
-def save_topics(topics):
+def save_objectives(objectives):
     os.makedirs('data', exist_ok=True)
     with open(TOPICS_FILE, 'w') as f:
-        json.dump(topics, f, indent=2, default=str)
+        json.dump(objectives, f, indent=2, default=str)
+
+def load_projects():
+    if os.path.exists(PROJECTS_FILE):
+        with open(PROJECTS_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def save_projects(projects):
+    os.makedirs('data', exist_ok=True)
+    with open(PROJECTS_FILE, 'w') as f:
+        json.dump(projects, f, indent=2, default=str)
 
 def load_dashboard_layouts():
     if os.path.exists(DASHBOARD_LAYOUTS_FILE):
@@ -258,13 +270,7 @@ def settings_page():
         import traceback
         return f"<pre>Error loading settings page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
-@app.route('/calendar')
-def calendar_page():
-    try:
-        return render_template('calendar.html')
-    except Exception as e:
-        import traceback
-        return f"<pre>Error loading calendar page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+# Calendar route removed - feature disabled
 
 @app.route('/reports')
 def reports_page():
@@ -274,21 +280,33 @@ def reports_page():
         import traceback
         return f"<pre>Error loading reports page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
-@app.route('/topics')
-def topics_page():
+@app.route('/objectives')
+def objectives_page():
     try:
-        return render_template('topics.html')
+        return render_template('objectives.html')
     except Exception as e:
         import traceback
-        return f"<pre>Error loading topics page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+        return f"<pre>Error loading objectives page:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
-@app.route('/topics/<topic_id>')
-def topic_workspace(topic_id):
+@app.route('/objectives/<objective_id>')
+def objective_workspace(objective_id):
     try:
-        return render_template('topic_workspace.html')
+        return render_template('objective_workspace.html')
     except Exception as e:
         import traceback
-        return f"<pre>Error loading topic workspace:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+        return f"<pre>Error loading objective workspace:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
+
+@app.route('/projects')
+def projects():
+    return render_template('projects.html')
+
+@app.route('/projects/<project_id>')
+def project_workspace(project_id):
+    try:
+        return render_template('project_workspace.html')
+    except Exception as e:
+        import traceback
+        return f"<pre>Error loading project workspace:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}</pre>", 500
 
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
@@ -398,7 +416,7 @@ def delete_task(task_id):
 @app.route('/api/tasks/summary', methods=['GET'])
 def get_summary():
     tasks = load_tasks()
-    topics = load_topics()  # Load objectives
+    topics = load_objectives()  # Load objectives
     today = date.today().isoformat()
     
     # Filter out completed and cancelled tasks for active counts
@@ -531,7 +549,7 @@ def ai_summary():
                 })
     
     tasks = load_tasks()
-    topics = load_topics()  # Load objectives
+    topics = load_objectives()  # Load objectives
     
     # Filter tasks based on the parameter
     if include_completed_cancelled:
@@ -761,27 +779,27 @@ def delete_template(template_identifier):
 
 # Topics API endpoints
 @app.route('/api/topics', methods=['GET'])
-def get_topics():
-    topics = load_topics()
-    return jsonify(topics)
+def get_objectives():
+    objectives = load_objectives()
+    return jsonify(objectives)
 
 @app.route('/api/topics', methods=['POST'])
-def create_topic():
-    topic = request.json
-    topic['id'] = str(uuid.uuid4())
-    topic['created_at'] = datetime.now().isoformat()
-    topic['updated_at'] = datetime.now().isoformat()
+def create_objective():
+    objective = request.json
+    objective['id'] = str(uuid.uuid4())
+    objective['created_at'] = datetime.now().isoformat()
+    objective['updated_at'] = datetime.now().isoformat()
     
     # Set default status if not provided
-    if 'status' not in topic:
-        topic['status'] = 'Active'
+    if 'status' not in objective:
+        objective['status'] = 'Active'
     
     # Initialize key results if not provided
-    if 'key_results' not in topic:
-        topic['key_results'] = []
+    if 'key_results' not in objective:
+        objective['key_results'] = []
     else:
         # Add IDs to key results if not present
-        for kr in topic['key_results']:
+        for kr in objective['key_results']:
             if 'id' not in kr:
                 kr['id'] = str(uuid.uuid4())
             if 'progress' not in kr:
@@ -790,45 +808,45 @@ def create_topic():
                 kr['status'] = 'Not Started'
     
     # OKR specific fields
-    if 'objective_type' not in topic:
-        topic['objective_type'] = 'aspirational'  # or 'committed'
-    if 'confidence' not in topic:
-        topic['confidence'] = 0.5  # 50% confidence by default
-    if 'period' not in topic:
-        topic['period'] = 'Q1'  # Default quarter
+    if 'objective_type' not in objective:
+        objective['objective_type'] = 'aspirational'  # or 'committed'
+    if 'confidence' not in objective:
+        objective['confidence'] = 0.5  # 50% confidence by default
+    if 'period' not in objective:
+        objective['period'] = 'Q1'  # Default quarter
     
-    topics = load_topics()
-    topics.append(topic)
-    save_topics(topics)
-    return jsonify(topic), 201
+    objectives = load_objectives()
+    objectives.append(objective)
+    save_objectives(objectives)
+    return jsonify(objective), 201
 
 @app.route('/api/topics/<topic_id>', methods=['GET'])
-def get_topic(topic_id):
-    topics = load_topics()
-    topic = next((t for t in topics if t['id'] == topic_id), None)
-    if topic:
-        # Get tasks associated with this topic
+def get_objective(topic_id):
+    objectives = load_objectives()
+    objective = next((o for o in objectives if o['id'] == topic_id), None)
+    if objective:
+        # Get tasks associated with this objective
         tasks = load_tasks()
-        topic_tasks = [t for t in tasks if t.get('topic_id') == topic_id]
-        topic['tasks'] = topic_tasks
-        topic['task_count'] = len(topic_tasks)
-        topic['open_tasks'] = len([t for t in topic_tasks if t.get('status') not in ['Completed', 'Cancelled']])
-        return jsonify(topic)
-    return jsonify({'error': 'Topic not found'}), 404
+        objective_tasks = [t for t in tasks if t.get('topic_id') == topic_id]
+        objective['tasks'] = objective_tasks
+        objective['task_count'] = len(objective_tasks)
+        objective['open_tasks'] = len([t for t in objective_tasks if t.get('status') not in ['Completed', 'Cancelled']])
+        return jsonify(objective)
+    return jsonify({'error': 'Objective not found'}), 404
 
 @app.route('/api/topics/<topic_id>', methods=['PUT'])
-def update_topic(topic_id):
-    topics = load_topics()
-    topic_index = next((i for i, t in enumerate(topics) if t['id'] == topic_id), None)
+def update_objective(topic_id):
+    objectives = load_objectives()
+    objective_index = next((i for i, o in enumerate(objectives) if o['id'] == topic_id), None)
     
-    if topic_index is not None:
-        updated_topic = request.json
-        updated_topic['id'] = topic_id
-        updated_topic['updated_at'] = datetime.now().isoformat()
+    if objective_index is not None:
+        updated_objective = request.json
+        updated_objective['id'] = topic_id
+        updated_objective['updated_at'] = datetime.now().isoformat()
         
         # Ensure key results have IDs
-        if 'key_results' in updated_topic:
-            for kr in updated_topic['key_results']:
+        if 'key_results' in updated_objective:
+            for kr in updated_objective['key_results']:
                 if 'id' not in kr:
                     kr['id'] = str(uuid.uuid4())
                 if 'progress' not in kr:
@@ -837,23 +855,23 @@ def update_topic(topic_id):
                     kr['status'] = 'Not Started'
         
         # Calculate overall OKR score based on key results
-        if 'key_results' in updated_topic and len(updated_topic['key_results']) > 0:
-            total_progress = sum(kr.get('progress', 0) for kr in updated_topic['key_results'])
-            updated_topic['okr_score'] = total_progress / len(updated_topic['key_results'])
+        if 'key_results' in updated_objective and len(updated_objective['key_results']) > 0:
+            total_progress = sum(kr.get('progress', 0) for kr in updated_objective['key_results'])
+            updated_objective['okr_score'] = total_progress / len(updated_objective['key_results'])
         else:
-            updated_topic['okr_score'] = 0
+            updated_objective['okr_score'] = 0
         
-        topics[topic_index] = updated_topic
-        save_topics(topics)
-        return jsonify(updated_topic)
+        objectives[objective_index] = updated_objective
+        save_objectives(objectives)
+        return jsonify(updated_objective)
     
-    return jsonify({'error': 'Topic not found'}), 404
+    return jsonify({'error': 'Objective not found'}), 404
 
 @app.route('/api/topics/<topic_id>', methods=['DELETE'])
-def delete_topic(topic_id):
-    topics = load_topics()
-    topics = [t for t in topics if t['id'] != topic_id]
-    save_topics(topics)
+def delete_objective(topic_id):
+    objectives = load_objectives()
+    objectives = [o for o in objectives if o['id'] != topic_id]
+    save_objectives(objectives)
     
     # Note: We don't delete associated tasks, just remove the topic association
     # This could be changed based on requirements
@@ -866,25 +884,104 @@ def delete_topic(topic_id):
     return '', 204
 
 @app.route('/api/topics/<topic_id>/tasks', methods=['GET'])
-def get_topic_tasks(topic_id):
+def get_objective_tasks(topic_id):
     tasks = load_tasks()
     topic_tasks = [t for t in tasks if t.get('topic_id') == topic_id]
     return jsonify(topic_tasks)
 
 @app.route('/api/topics/<topic_id>/notes', methods=['PUT'])
-def update_topic_notes(topic_id):
-    topics = load_topics()
-    topic_index = next((i for i, t in enumerate(topics) if t['id'] == topic_id), None)
+def update_objective_notes(topic_id):
+    objectives = load_objectives()
+    objective_index = next((i for i, o in enumerate(objectives) if o['id'] == topic_id), None)
     
-    if topic_index is not None:
+    if objective_index is not None:
         notes_data = request.json
-        topics[topic_index]['notes'] = notes_data.get('notes', '')
-        topics[topic_index]['updated_at'] = datetime.now().isoformat()
+        objectives[objective_index]['notes'] = notes_data.get('notes', '')
+        objectives[objective_index]['updated_at'] = datetime.now().isoformat()
         
-        save_topics(topics)
+        save_objectives(objectives)
         return jsonify({'success': True})
     
-    return jsonify({'error': 'Topic not found'}), 404
+    return jsonify({'error': 'Objective not found'}), 404
+
+# Projects (Topics) endpoints
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    projects = load_projects()
+    return jsonify(projects)
+
+@app.route('/api/projects', methods=['POST'])
+def create_project():
+    project = request.json
+    project['id'] = str(uuid.uuid4())
+    project['created_at'] = datetime.now().isoformat()
+    project['updated_at'] = datetime.now().isoformat()
+    
+    # Set default values
+    if 'status' not in project:
+        project['status'] = 'Planning'
+    if 'notes' not in project:
+        project['notes'] = ''
+    
+    projects = load_projects()
+    projects.append(project)
+    save_projects(projects)
+    
+    return jsonify(project), 201
+
+@app.route('/api/projects/<project_id>', methods=['GET'])
+def get_project(project_id):
+    projects = load_projects()
+    project = next((p for p in projects if p['id'] == project_id), None)
+    
+    if project:
+        return jsonify(project)
+    
+    return jsonify({'error': 'Project not found'}), 404
+
+@app.route('/api/projects/<project_id>', methods=['PUT'])
+def update_project(project_id):
+    projects = load_projects()
+    project_index = next((i for i, p in enumerate(projects) if p['id'] == project_id), None)
+    
+    if project_index is not None:
+        updated_data = request.json
+        projects[project_index].update(updated_data)
+        projects[project_index]['updated_at'] = datetime.now().isoformat()
+        
+        save_projects(projects)
+        return jsonify(projects[project_index])
+    
+    return jsonify({'error': 'Project not found'}), 404
+
+@app.route('/api/projects/<project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    projects = load_projects()
+    projects = [p for p in projects if p['id'] != project_id]
+    save_projects(projects)
+    
+    return jsonify({'success': True})
+
+@app.route('/api/projects/<project_id>/tasks', methods=['GET'])
+def get_project_tasks(project_id):
+    tasks = load_tasks()
+    project_tasks = [t for t in tasks if t.get('project_id') == project_id]
+    return jsonify(project_tasks)
+
+@app.route('/api/projects/<project_id>/notes', methods=['PUT'])
+def update_project_notes(project_id):
+    projects = load_projects()
+    project_index = next((i for i, p in enumerate(projects) if p['id'] == project_id), None)
+    
+    if project_index is not None:
+        notes_data = request.json
+        projects[project_index]['notes'] = notes_data.get('notes', '')
+        projects[project_index]['updated_at'] = datetime.now().isoformat()
+        
+        save_projects(projects)
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Project not found'}), 404
 
 # Comments endpoints
 @app.route('/api/tasks/<task_id>/comments', methods=['POST'])
@@ -1038,32 +1135,7 @@ def get_similar_tasks():
     )
     return jsonify(similar)
 
-# Calendar events endpoint
-@app.route('/api/calendar/events', methods=['GET'])
-def get_calendar_events():
-    tasks = load_tasks()
-    events = []
-    
-    for task in tasks:
-        if task.get('follow_up_date'):
-            event = {
-                'id': task['id'],
-                'title': task.get('title', 'Untitled'),
-                'start': task['follow_up_date'],
-                'end': task['follow_up_date'],
-                'color': '#e74c3c' if task.get('priority') == 'Urgent' else
-                        '#e67e22' if task.get('priority') == 'High' else
-                        '#3498db' if task.get('priority') == 'Medium' else
-                        '#95a5a6',
-                'extendedProps': {
-                    'customer': task.get('customer_name', ''),
-                    'status': task.get('status', ''),
-                    'description': task.get('description', '')
-                }
-            }
-            events.append(event)
-    
-    return jsonify(events)
+# Calendar API endpoint removed - feature disabled
 
 # Dashboard layout endpoints
 @app.route('/api/dashboard/layout', methods=['GET'])
