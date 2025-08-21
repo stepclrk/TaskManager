@@ -49,7 +49,7 @@ echo.
 echo import sys > check_deps.py
 echo import importlib.util >> check_deps.py
 echo missing = [] >> check_deps.py
-echo packages = {'flask': 'Flask', 'flask_cors': 'Flask-CORS', 'anthropic': 'anthropic', 'plyer': 'plyer'} >> check_deps.py
+echo packages = {'flask': 'Flask', 'flask_cors': 'Flask-CORS', 'anthropic': 'anthropic', 'plyer': 'plyer', 'waitress': 'waitress'} >> check_deps.py
 echo for module, package in packages.items(): >> check_deps.py
 echo     if importlib.util.find_spec(module) is None: >> check_deps.py
 echo         missing.append(package) >> check_deps.py
@@ -68,8 +68,8 @@ if "%DEPS_STATUS:~0,7%"=="MISSING" (
     echo Some dependencies are missing. Installing...
     echo.
     
-    :: Install missing dependencies
-    pip install Flask Flask-CORS anthropic plyer
+    :: Install missing dependencies using requirements.txt
+    pip install -r requirements.txt
     
     if %errorlevel% neq 0 (
         color 0C
@@ -105,15 +105,41 @@ if not exist "app.py" (
 echo [4/4] Starting Task Manager...
 echo ========================================
 echo.
-echo The application will automatically find an available port
+
+:: Find available port by trying to bind
+echo Finding available port...
+set PORT=8080
+set PORTS_TO_TRY=8080 8081 5000 5001 8000 3000
+
+for %%p in (%PORTS_TO_TRY%) do (
+    netstat -an | findstr /r ":%%p.*LISTENING" >nul 2>&1
+    if errorlevel 1 (
+        set PORT=%%p
+        goto :port_found
+    )
+)
+
+:port_found
+echo Using port %PORT%
+echo Dashboard will be available at: http://localhost:%PORT%
 echo.
 echo Press Ctrl+C to stop the server
 echo.
 echo ========================================
 echo.
 
-:: Run the Flask application (it will auto-open browser)
-python app.py
+:: Start browser after a delay
+start "" timeout /t 2 /nobreak >nul && start http://localhost:%PORT%
+
+:: Try Waitress first, then fall back to Flask if it fails
+echo Attempting to start with Waitress production server...
+python -m waitress --port=%PORT% --threads=4 app:app
+if %errorlevel% neq 0 (
+    echo.
+    echo Waitress failed to start. Falling back to Flask development server...
+    echo.
+    python app.py
+)
 
 :: This will execute after the app is closed
 echo.

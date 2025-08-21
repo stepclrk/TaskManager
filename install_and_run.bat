@@ -71,14 +71,22 @@ echo This may take a few minutes...
 echo.
 
 pip install --upgrade pip >nul 2>&1
-pip install Flask==3.0.0 Flask-CORS==4.0.0 anthropic==0.18.1 plyer==2.1
+
+:: Try to install from requirements.txt first
+if exist "requirements.txt" (
+    echo Installing from requirements.txt...
+    pip install -r requirements.txt
+) else (
+    echo Installing individual packages...
+    pip install Flask==3.0.0 Flask-CORS==4.0.0 anthropic>=0.25.0 plyer==2.1 requests==2.31.0 waitress==3.0.0
+)
 
 if %errorlevel% neq 0 (
     color 0E
     echo.
     echo [WARNING] Some packages may not have installed correctly
     echo Attempting alternative installation...
-    pip install Flask Flask-CORS anthropic plyer
+    pip install Flask Flask-CORS anthropic plyer requests waitress
 )
 
 echo.
@@ -161,11 +169,27 @@ echo     LAUNCHING APPLICATION
 echo ================================================
 echo.
 color 0A
-echo Setup complete! Starting Task Manager...
+echo Setup complete! Starting Task Manager with Waitress...
 echo.
-echo The application will open at: http://localhost:5000
+
+:: Find available port by checking what's listening
+echo Finding available port...
+set PORT=8080
+set PORTS_TO_TRY=8080 8081 5000 5001 8000 3000
+
+for %%p in (%PORTS_TO_TRY%) do (
+    netstat -an | findstr /r ":%%p.*LISTENING" >nul 2>&1
+    if errorlevel 1 (
+        set PORT=%%p
+        goto :port_found
+    )
+)
+
+:port_found
+echo The application will open at: http://localhost:%PORT%
 echo.
 echo IMPORTANT NOTES:
+echo - Using production server for better performance
 echo - To use AI features, add your Anthropic API key in Settings
 echo - Press Ctrl+C in this window to stop the server
 echo - Your data is saved in the 'data' folder
@@ -177,10 +201,17 @@ echo.
 timeout /t 2 >nul
 
 :: Open browser automatically
-start "" http://localhost:5000
+start "" http://localhost:%PORT%
 
-:: Start the Flask application
-python app.py
+:: Try Waitress first, then fall back to Flask if it fails
+echo Starting server...
+python -m waitress --port=%PORT% --threads=4 app:app
+if %errorlevel% neq 0 (
+    echo.
+    echo Waitress failed to start. Using Flask development server...
+    echo.
+    python app.py
+)
 
 :: After application closes
 echo.

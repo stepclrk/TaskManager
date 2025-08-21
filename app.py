@@ -1509,4 +1509,4 @@ if __name__ == '__main__':
         browser_thread = threading.Thread(target=open_browser, daemon=True)
         browser_thread.start()
     
-    app.run(debug=True, port=port, host='127.0.0.1')
+    app.run(debug=False, port=port, host='127.0.0.1')
