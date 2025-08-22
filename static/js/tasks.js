@@ -266,7 +266,7 @@ function renderListView(tasks, container) {
     }
     
     container.innerHTML = tasks.map(task => {
-        const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date();
+        const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date() && task.status !== 'Completed';
         const isUrgent = task.priority === 'Urgent';
         const className = isUrgent ? 'urgent' : (isOverdue ? 'overdue' : '');
         
@@ -285,7 +285,7 @@ function renderListView(tasks, container) {
                         Customer: ${escapeHtml(task.customer_name || 'N/A')} | 
                         Status: ${task.status} | 
                         Priority: <span class="${task.priority === 'Urgent' ? 'priority-urgent' : (task.priority === 'High' ? 'priority-high' : '')}">${task.priority}</span> | 
-                        Due: ${task.follow_up_date || 'No date'}
+                        Due: ${formatFollowUpDate(task.follow_up_date)}
                         ${topicName ? ` | <span style="color: #3498db;">📊 ${escapeHtml(topicName)}</span>` : ''}
                     </div>
                 </div>
@@ -331,7 +331,7 @@ function renderKanbanView(tasks, container, groupBy) {
                         ${groupTasks.length === 0 ? 
                             '<div class="empty-column-message">Drop tasks here</div>' : 
                             groupTasks.map(task => {
-                            const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date();
+                            const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date() && task.status !== 'Completed';
                             const isUrgent = task.priority === 'Urgent';
                             const className = isUrgent ? 'urgent' : (isOverdue ? 'overdue' : '');
                             
@@ -424,7 +424,27 @@ function editTask(taskId) {
     document.getElementById('description').value = currentTask.description || '';
     document.getElementById('category').value = currentTask.category || config.categories[0];
     document.getElementById('priority').value = currentTask.priority || config.priorities[0];
-    document.getElementById('followUpDate').value = currentTask.follow_up_date || '';
+    // Handle datetime-local input format
+    if (currentTask.follow_up_date) {
+        // Convert to datetime-local format (YYYY-MM-DDTHH:MM)
+        let dateValue = currentTask.follow_up_date;
+        // If it's just a date (YYYY-MM-DD), keep it as is for backward compatibility
+        if (dateValue.length === 10) {
+            // Don't set a default time for existing date-only values
+            document.getElementById('followUpDate').value = '';
+            // Show the date in a user-friendly way
+            document.getElementById('followUpDate').placeholder = dateValue + ' (no time set)';
+        } else {
+            // If it already has time, ensure it's in the correct format
+            if (dateValue.includes(' ')) {
+                // Convert from display format back to input format if needed
+                dateValue = dateValue.replace(' ', 'T').substring(0, 16);
+            }
+            document.getElementById('followUpDate').value = dateValue.substring(0, 16);
+        }
+    } else {
+        document.getElementById('followUpDate').value = '';
+    }
     document.getElementById('status').value = currentTask.status || config.statuses[0];
     document.getElementById('assignedTo').value = currentTask.assigned_to || '';
     document.getElementById('tags').value = currentTask.tags || '';
@@ -643,6 +663,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+function formatFollowUpDate(dateStr) {
+    if (!dateStr) return 'No date';
+    
+    // Check if it includes time
+    if (dateStr.includes('T') || (dateStr.includes(' ') && dateStr.length > 10)) {
+        const date = new Date(dateStr);
+        // Format with both date and time
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        return date.toLocaleDateString(undefined, dateOptions) + ' ' + date.toLocaleTimeString(undefined, timeOptions);
+    } else {
+        // Just date
+        const date = new Date(dateStr + 'T00:00:00');
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString(undefined, dateOptions);
+    }
 }
 
 // Drag and Drop functionality

@@ -2,6 +2,39 @@ let currentConfig = {};
 let currentSettings = {};
 let currentTemplates = [];
 
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Show animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+async function testNotification() {
+    try {
+        const response = await fetch('/api/test-notification');
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Notification test sent! Check your system notifications.', 'success');
+        } else {
+            showNotification('Failed to send test notification: ' + (result.error || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        showNotification('Error testing notification: ' + error.message, 'error');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     loadConfig();

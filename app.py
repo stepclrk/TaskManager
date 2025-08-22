@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 import uuid
 import threading
 import time
-from plyer import notification
+# from plyer import notification  # Removed - using browser notifications only
 from ai_helper import call_ai_api
 from werkzeug.utils import secure_filename
 import shutil
@@ -98,6 +98,63 @@ def save_templates(templates):
     os.makedirs('data', exist_ok=True)
     with open(TEMPLATES_FILE, 'w') as f:
         json.dump(templates, f, indent=2)
+
+def parse_follow_up_datetime(follow_up_value):
+    """Parse follow-up date/datetime string and return datetime object"""
+    if not follow_up_value:
+        return None
+    
+    # Try parsing as datetime first (YYYY-MM-DDTHH:MM format from datetime-local input)
+    try:
+        # Handle both with and without seconds
+        if 'T' in follow_up_value:
+            if len(follow_up_value) == 16:  # YYYY-MM-DDTHH:MM
+                return datetime.fromisoformat(follow_up_value + ':00')
+            else:
+                return datetime.fromisoformat(follow_up_value)
+        elif ' ' in follow_up_value:
+            # Handle space-separated datetime
+            return datetime.strptime(follow_up_value, '%Y-%m-%d %H:%M:%S')
+    except:
+        pass
+    
+    # Try parsing as date only (YYYY-MM-DD format)
+    try:
+        date_obj = datetime.strptime(follow_up_value, '%Y-%m-%d')
+        # Set to end of day for date-only values for backward compatibility
+        return date_obj.replace(hour=23, minute=59, second=59)
+    except:
+        return None
+
+def is_overdue(follow_up_value, status=None):
+    """Check if a task is overdue based on follow-up date/time"""
+    if status == 'Completed':
+        return False
+    follow_up_dt = parse_follow_up_datetime(follow_up_value)
+    if not follow_up_dt:
+        return False
+    return follow_up_dt < datetime.now()
+
+def is_due_today(follow_up_value):
+    """Check if a task is due today"""
+    follow_up_dt = parse_follow_up_datetime(follow_up_value)
+    if not follow_up_dt:
+        return False
+    
+    today = datetime.now().date()
+    return follow_up_dt.date() == today
+
+def format_follow_up_display(follow_up_value):
+    """Format follow-up date/time for display"""
+    follow_up_dt = parse_follow_up_datetime(follow_up_value)
+    if not follow_up_dt:
+        return None
+    
+    # If time is set (not 23:59:59), show date and time
+    if follow_up_dt.hour != 23 or follow_up_dt.minute != 59:
+        return follow_up_dt.strftime('%Y-%m-%d %I:%M %p')
+    # Otherwise just show date
+    return follow_up_dt.strftime('%Y-%m-%d')
 
 def load_ai_summary_cache():
     if os.path.exists(AI_SUMMARY_CACHE_FILE):
@@ -455,11 +512,17 @@ def get_summary():
             'target_date': obj.get('target_date')
         })
     
+    # Get all overdue tasks
+    overdue_tasks = [t for t in active_tasks if is_overdue(t.get('follow_up_date'), t.get('status'))]
+    # Sort overdue tasks by follow-up date (oldest first)
+    overdue_tasks = sorted(overdue_tasks, key=lambda x: parse_follow_up_datetime(x.get('follow_up_date')) or datetime.min)
+    
     summary = {
         'total': len(active_tasks),  # Only count active tasks
         'open': len([t for t in tasks if t.get('status') == 'Open']),
-        'due_today': len([t for t in active_tasks if t.get('follow_up_date') == today]),
-        'overdue': len([t for t in active_tasks if t.get('follow_up_date') and t.get('follow_up_date') < today]),
+        'due_today': len([t for t in active_tasks if is_due_today(t.get('follow_up_date'))]),
+        'overdue': len(overdue_tasks),
+        'overdue_tasks': overdue_tasks,  # Include full list of overdue tasks
         'urgent': [t for t in active_tasks if t.get('priority') == 'Urgent'],
         'by_customer': {},
         'upcoming': [],
@@ -474,9 +537,12 @@ def get_summary():
             summary['by_customer'][customer] = []
         summary['by_customer'][customer].append(task)
     
-    # Only show upcoming active tasks
-    upcoming = [t for t in active_tasks if t.get('follow_up_date') and t.get('follow_up_date') > today]
-    summary['upcoming'] = sorted(upcoming, key=lambda x: x.get('follow_up_date', ''))[:5]
+    # Only show upcoming active tasks (not overdue and not due today)
+    upcoming = [t for t in active_tasks if t.get('follow_up_date') and 
+                not is_overdue(t.get('follow_up_date'), t.get('status')) and 
+                not is_due_today(t.get('follow_up_date'))]
+    # Sort by datetime properly
+    upcoming = sorted(upcoming, key=lambda x: parse_follow_up_datetime(x.get('follow_up_date')) or datetime.max)[:5]
     
     return jsonify(summary)
 
@@ -703,6 +769,74 @@ def update_config():
     config = request.json
     save_config(config)
     return jsonify(config)
+
+@app.route('/api/test-notification', methods=['GET'])
+def test_notification():
+    """Test endpoint - system notifications disabled, using browser notifications only"""
+    return jsonify({
+        'success': True, 
+        'message': 'System notifications disabled. Browser notifications are active when dashboard is open.'
+    })
+
+@app.route('/api/tasks/notification-check', methods=['GET'])
+def check_notification_tasks():
+    """Check for tasks that need notifications (for browser notifications)"""
+    tasks = load_tasks()
+    
+    # Get active tasks only
+    active_tasks = [t for t in tasks if t.get('status') not in ['Completed', 'Cancelled']]
+    
+    # Find overdue tasks
+    overdue = []
+    for task in active_tasks:
+        if is_overdue(task.get('follow_up_date'), task.get('status')):
+            overdue.append({
+                'id': task.get('id'),
+                'title': task.get('title'),
+                'follow_up_date': task.get('follow_up_date'),
+                'customer_name': task.get('customer_name'),
+                'priority': task.get('priority')
+            })
+    
+    # Find tasks due soon (within next hour)
+    due_soon = []
+    for task in active_tasks:
+        follow_up_dt = parse_follow_up_datetime(task.get('follow_up_date'))
+        if follow_up_dt:
+            time_until_due = (follow_up_dt - datetime.now()).total_seconds()
+            # Due within next hour but not overdue
+            if 0 < time_until_due <= 3600:
+                due_soon.append({
+                    'id': task.get('id'),
+                    'title': task.get('title'),
+                    'follow_up_date': task.get('follow_up_date'),
+                    'customer_name': task.get('customer_name'),
+                    'priority': task.get('priority'),
+                    'minutesUntilDue': time_until_due / 60
+                })
+    
+    # Find tasks due today (but not overdue or due soon)
+    due_today = []
+    for task in active_tasks:
+        if is_due_today(task.get('follow_up_date')) and not is_overdue(task.get('follow_up_date'), task.get('status')):
+            follow_up_dt = parse_follow_up_datetime(task.get('follow_up_date'))
+            if follow_up_dt:
+                time_until_due = (follow_up_dt - datetime.now()).total_seconds()
+                # Only include if more than 1 hour away (otherwise it's in due_soon)
+                if time_until_due > 3600:
+                    due_today.append({
+                        'id': task.get('id'),
+                        'title': task.get('title'),
+                        'follow_up_date': task.get('follow_up_date'),
+                        'customer_name': task.get('customer_name'),
+                        'priority': task.get('priority')
+                    })
+    
+    return jsonify({
+        'overdue': overdue,
+        'dueSoon': due_soon,
+        'dueToday': due_today
+    })
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
@@ -1351,9 +1485,10 @@ def task_summary(task_id):
         task_info += f"Assigned to: {task.get('assigned_to')}\n"
     
     if task.get('follow_up_date'):
-        task_info += f"Due Date: {task.get('follow_up_date')}\n"
+        formatted_date = format_follow_up_display(task.get('follow_up_date'))
+        task_info += f"Due Date: {formatted_date or task.get('follow_up_date')}\n"
         # Calculate if overdue
-        if task.get('follow_up_date') < date.today().isoformat() and task.get('status') != 'Completed':
+        if is_overdue(task.get('follow_up_date'), task.get('status')):
             task_info += "Status Note: OVERDUE\n"
     
     if task.get('description'):
@@ -1431,33 +1566,125 @@ Provide a thorough analysis while maintaining clarity.
     else:
         return jsonify({'error': result.get('error', 'Unknown error occurred')}), 500
 
+# System notifications disabled - using browser notifications only
+# The check_notifications function and related code have been commented out
+# Browser notifications are handled client-side in dashboard.js
+
+'''
+# Track which tasks have been notified to avoid spam
+notified_tasks = {
+    'overdue': set(),
+    'due_today': set(),
+    'due_soon': set()
+}
+
 def check_notifications():
+    import sys
+    global notified_tasks
+    
     while True:
-        settings = load_settings()
-        if settings.get('notifications_enabled'):
-            tasks = load_tasks()
-            today = date.today().isoformat()
+        try:
+            settings = load_settings()
+            if settings.get('notifications_enabled'):
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Checking for notifications...", file=sys.stderr)
+                tasks = load_tasks()
+                
+                # Debug: Show task follow-up times
+                for task in tasks:
+                    if task.get('follow_up_date') and task.get('status') != 'Completed':
+                        follow_up_dt = parse_follow_up_datetime(task.get('follow_up_date'))
+                        if follow_up_dt:
+                            is_od = is_overdue(task.get('follow_up_date'), task.get('status'))
+                            print(f"  Task '{task.get('title')}': Due {follow_up_dt.strftime('%Y-%m-%d %H:%M')} - Overdue: {is_od}", file=sys.stderr)
+                
+                # Filter to only show new overdue tasks
+                all_overdue = [t for t in tasks if is_overdue(t.get('follow_up_date'), t.get('status'))]
+                overdue = [t for t in all_overdue if t.get('id') not in notified_tasks['overdue']]
+                
+                all_due_today = [t for t in tasks if is_due_today(t.get('follow_up_date')) and t.get('status') != 'Completed']
+                due_today = [t for t in all_due_today if t.get('id') not in notified_tasks['due_today']]
+                
+                # Check for tasks due within the next hour
+                all_due_soon = []
+                for task in tasks:
+                    if task.get('status') == 'Completed':
+                        continue
+                    follow_up_dt = parse_follow_up_datetime(task.get('follow_up_date'))
+                    if follow_up_dt:
+                        time_until_due = (follow_up_dt - datetime.now()).total_seconds()
+                        # Due within next hour but not overdue
+                        if 0 < time_until_due <= 3600:
+                            all_due_soon.append(task)
+                
+                due_soon = [t for t in all_due_soon if t.get('id') not in notified_tasks['due_soon']]
+                
+                print(f"  Found: {len(overdue)} new overdue (total: {len(all_overdue)}), "
+                      f"{len(due_today)} new due today (total: {len(all_due_today)}), "
+                      f"{len(due_soon)} new due soon (total: {len(all_due_soon)})", file=sys.stderr)
+                
+                # Clean up notified tasks that are no longer in their respective states
+                # Remove from overdue list if task is no longer overdue
+                notified_tasks['overdue'] = {tid for tid in notified_tasks['overdue'] 
+                                            if any(t.get('id') == tid for t in all_overdue)}
+                # Remove from due_today list if task is no longer due today
+                notified_tasks['due_today'] = {tid for tid in notified_tasks['due_today']
+                                              if any(t.get('id') == tid for t in all_due_today)}
+                # Remove from due_soon list if task is no longer due soon
+                notified_tasks['due_soon'] = {tid for tid in notified_tasks['due_soon']
+                                             if any(t.get('id') == tid for t in all_due_soon)}
+                
+                # Try to send notifications with error handling
+                try:
+                    # On Windows, ensure the app_icon is None to avoid issues
+                    if overdue:
+                        notification.notify(
+                            title='Overdue Tasks',
+                            message=f'You have {len(overdue)} new overdue task(s)',
+                            app_name='Task Manager',
+                            app_icon=None,  # Important for Windows
+                            timeout=10
+                        )
+                        # Mark these tasks as notified
+                        for task in overdue:
+                            notified_tasks['overdue'].add(task.get('id'))
+                            print(f"  Notified for overdue: {task.get('title')}", file=sys.stderr)
+                    
+                    if due_today:
+                        notification.notify(
+                            title='Tasks Due Today',
+                            message=f'You have {len(due_today)} task(s) due today',
+                            app_name='Task Manager',
+                            app_icon=None,  # Important for Windows
+                            timeout=10
+                        )
+                        # Mark these tasks as notified
+                        for task in due_today:
+                            notified_tasks['due_today'].add(task.get('id'))
+                            print(f"  Notified for due today: {task.get('title')}", file=sys.stderr)
+                    
+                    if due_soon:
+                        notification.notify(
+                            title='Tasks Due Soon',
+                            message=f'You have {len(due_soon)} task(s) due within the next hour',
+                            app_name='Task Manager',
+                            app_icon=None,  # Important for Windows
+                            timeout=10
+                        )
+                        # Mark these tasks as notified
+                        for task in due_soon:
+                            notified_tasks['due_soon'].add(task.get('id'))
+                            print(f"  Notified for due soon: {task.get('title')}", file=sys.stderr)
+                except Exception as e:
+                    # Notifications might not work in WSL or certain environments
+                    print(f"Note: Desktop notifications not available ({str(e)})", file=sys.stderr)
+                    # Continue running without notifications
+                    pass
             
-            overdue = [t for t in tasks if t.get('follow_up_date') and t.get('follow_up_date') < today and t.get('status') != 'Completed']
-            due_today = [t for t in tasks if t.get('follow_up_date') == today and t.get('status') != 'Completed']
-            
-            if overdue:
-                notification.notify(
-                    title='Overdue Tasks',
-                    message=f'You have {len(overdue)} overdue task(s)',
-                    app_name='Task Manager',
-                    timeout=10
-                )
-            
-            if due_today:
-                notification.notify(
-                    title='Tasks Due Today',
-                    message=f'You have {len(due_today)} task(s) due today',
-                    app_name='Task Manager',
-                    timeout=10
-                )
-        
-        time.sleep(settings.get('check_interval', 60) * 60)
+            time.sleep(settings.get('check_interval', 60) * 60)
+        except Exception as e:
+            print(f"Error in notification thread: {str(e)}", file=sys.stderr)
+            time.sleep(60)  # Wait a minute before retrying
+'''
 
 @app.errorhandler(404)
 def not_found(error):
@@ -1467,9 +1694,11 @@ def not_found(error):
 def favicon():
     return '', 204
 
+# System notifications disabled - using browser notifications only
+# notification_thread = threading.Thread(target=check_notifications, daemon=True)
+# notification_thread.start()
+
 if __name__ == '__main__':
-    notification_thread = threading.Thread(target=check_notifications, daemon=True)
-    notification_thread.start()
     
     # Try different ports if 5000 is in use
     import socket

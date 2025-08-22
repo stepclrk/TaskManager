@@ -48,11 +48,191 @@ async function checkApiKeyAndSetupAI() {
     }
 }
 
+// Track which tasks have already shown browser notifications
+let browserNotifiedTasks = {
+    overdue: new Set(),
+    dueSoon: new Set(),
+    dueToday: new Set()
+};
+
+// Request notification permission on load
+async function setupBrowserNotifications() {
+    const notificationBtn = document.getElementById('notificationBtn');
+    
+    if ('Notification' in window) {
+        console.log('Browser notification support detected. Current permission:', Notification.permission);
+        
+        if (Notification.permission === 'default') {
+            // Automatically request permission
+            console.log('Requesting notification permission...');
+            const permission = await Notification.requestPermission();
+            console.log('Notification permission response:', permission);
+            
+            if (permission === 'granted') {
+                // Granted - show status and start
+                notificationBtn.style.display = 'block';
+                notificationBtn.textContent = '🔔 Notifications Enabled';
+                notificationBtn.disabled = true;
+                notificationBtn.style.opacity = '0.7';
+                startNotificationChecking();
+                // Show welcome notification
+                showBrowserNotification('Welcome!', 'Browser notifications are now enabled for Task Manager', null);
+            } else if (permission === 'denied') {
+                // User denied - show status
+                notificationBtn.style.display = 'block';
+                notificationBtn.textContent = '🔕 Notifications Blocked';
+                notificationBtn.disabled = true;
+                notificationBtn.style.opacity = '0.5';
+                notificationBtn.title = 'Browser notifications are blocked. Check your browser settings to enable them.';
+            }
+        } else if (Notification.permission === 'granted') {
+            // Already granted, show status and start checking
+            console.log('Notifications already granted, starting checks...');
+            notificationBtn.style.display = 'block';
+            notificationBtn.textContent = '🔔 Notifications Enabled';
+            notificationBtn.disabled = true;
+            notificationBtn.style.opacity = '0.7';
+            startNotificationChecking();
+        } else if (Notification.permission === 'denied') {
+            // Denied, show status
+            console.log('Notifications denied by user');
+            notificationBtn.style.display = 'block';
+            notificationBtn.textContent = '🔕 Notifications Blocked';
+            notificationBtn.disabled = true;
+            notificationBtn.style.opacity = '0.5';
+            notificationBtn.title = 'Browser notifications are blocked. Check your browser settings to enable them.';
+        }
+    } else {
+        // Browser doesn't support notifications
+        console.log('Browser does not support notifications');
+    }
+}
+
+function updateNotificationButton() {
+    const notificationBtn = document.getElementById('notificationBtn');
+    if (Notification.permission === 'granted') {
+        notificationBtn.textContent = '🔔 Notifications Enabled';
+        notificationBtn.disabled = true;
+        notificationBtn.style.opacity = '0.7';
+    } else if (Notification.permission === 'denied') {
+        notificationBtn.textContent = '🔕 Notifications Blocked';
+        notificationBtn.disabled = true;
+        notificationBtn.style.opacity = '0.5';
+    }
+}
+
+function startNotificationChecking() {
+    // Start checking for notifications every 30 seconds
+    setInterval(checkBrowserNotifications, 30000);
+    // Also check immediately
+    checkBrowserNotifications();
+}
+
+async function checkBrowserNotifications() {
+    if (Notification.permission !== 'granted') return;
+    
+    try {
+        const response = await fetch('/api/tasks/notification-check');
+        if (!response.ok) {
+            console.error('Notification check failed:', response.status, response.statusText);
+            return;
+        }
+        const data = await response.json();
+        console.log('Notification check:', data);  // Debug log
+        
+        // Check for new overdue tasks
+        console.log(`Found ${data.overdue.length} overdue tasks`);
+        data.overdue.forEach(task => {
+            if (!browserNotifiedTasks.overdue.has(task.id)) {
+                console.log(`Showing browser notification for overdue task: ${task.title}`);
+                showBrowserNotification(
+                    '⚠️ Task Overdue',
+                    `"${task.title}" was due ${formatFollowUpDate(task.follow_up_date)}`,
+                    task.id
+                );
+                browserNotifiedTasks.overdue.add(task.id);
+            }
+        });
+        
+        // Check for tasks due soon (within 1 hour)
+        data.dueSoon.forEach(task => {
+            if (!browserNotifiedTasks.dueSoon.has(task.id)) {
+                const minutesUntilDue = Math.round(task.minutesUntilDue);
+                showBrowserNotification(
+                    '⏰ Task Due Soon',
+                    `"${task.title}" is due in ${minutesUntilDue} minutes`,
+                    task.id
+                );
+                browserNotifiedTasks.dueSoon.add(task.id);
+            }
+        });
+        
+        // Check for tasks due today
+        data.dueToday.forEach(task => {
+            if (!browserNotifiedTasks.dueToday.has(task.id)) {
+                showBrowserNotification(
+                    '📅 Task Due Today',
+                    `"${task.title}" is due today at ${new Date(task.follow_up_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                    task.id
+                );
+                browserNotifiedTasks.dueToday.add(task.id);
+            }
+        });
+        
+        // Clean up tasks that are no longer in notification states
+        browserNotifiedTasks.overdue = new Set([...browserNotifiedTasks.overdue].filter(id => 
+            data.overdue.some(t => t.id === id)));
+        browserNotifiedTasks.dueSoon = new Set([...browserNotifiedTasks.dueSoon].filter(id => 
+            data.dueSoon.some(t => t.id === id)));
+        browserNotifiedTasks.dueToday = new Set([...browserNotifiedTasks.dueToday].filter(id => 
+            data.dueToday.some(t => t.id === id)));
+            
+    } catch (error) {
+        console.error('Error checking browser notifications:', error);
+    }
+}
+
+function showBrowserNotification(title, body, taskId) {
+    console.log(`Creating browser notification: ${title} - ${body}`);
+    try {
+        const notification = new Notification(title, {
+            body: body,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: taskId || 'test', // Prevents duplicate notifications for same task
+            requireInteraction: false,
+            silent: false
+        });
+        
+        // Click handler - focus the window and open the task
+        notification.onclick = function(event) {
+            event.preventDefault();
+            window.focus();
+            // Open the task for editing
+            if (taskId) {
+                openTask(taskId);
+            }
+            notification.close();
+        };
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+        
+        console.log('Browser notification created successfully');
+    } catch (error) {
+        console.error('Failed to create browser notification:', error);
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboard();
     
     // Check for API key and setup AI features
     checkApiKeyAndSetupAI();
+    
+    // Setup browser notifications
+    setupBrowserNotifications();
     
     document.getElementById('refreshBtn').addEventListener('click', () => {
         loadDashboard();
@@ -72,8 +252,9 @@ async function loadDashboard() {
         document.getElementById('totalTasks').textContent = summary.total;
         document.getElementById('openTasks').textContent = summary.open;
         document.getElementById('dueToday').textContent = summary.due_today;
-        document.getElementById('overdueTasks').textContent = summary.overdue;
+        document.getElementById('overdueTasksCount').textContent = summary.overdue;
         
+        displayOverdueTasks(summary.overdue_tasks || []);
         displayActiveObjectives(summary.objectives || []);
         displayUrgentTasks(summary.urgent);
         displayUpcomingTasks(summary.upcoming);
@@ -81,6 +262,37 @@ async function loadDashboard() {
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
+}
+
+function displayOverdueTasks(tasks) {
+    const container = document.getElementById('overdueTasks');
+    
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<p class="empty-message">No overdue tasks</p>';
+        return;
+    }
+    
+    container.innerHTML = tasks.map(task => {
+        const followUpDate = formatFollowUpDate(task.follow_up_date);
+        // Calculate how overdue
+        const daysOverdue = task.follow_up_date ? 
+            Math.floor((new Date() - new Date(task.follow_up_date)) / (1000 * 60 * 60 * 24)) : 0;
+        const overdueText = daysOverdue > 0 ? ` (${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue)` : '';
+        
+        return `
+            <div class="task-item overdue clickable" onclick="openTask('${task.id}')" title="Click to edit">
+                <div class="task-item-title">${escapeHtml(task.title)}</div>
+                <div class="task-item-meta">
+                    Customer: ${escapeHtml(task.customer_name || 'N/A')} | 
+                    Status: ${task.status} | 
+                    Priority: ${task.priority}
+                </div>
+                <div class="task-item-meta" style="color: #e74c3c; font-weight: bold;">
+                    Due: ${followUpDate}${overdueText}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function displayUrgentTasks(tasks) {
@@ -96,7 +308,7 @@ function displayUrgentTasks(tasks) {
             <div class="task-item-title">${escapeHtml(task.title)}</div>
             <div class="task-item-meta">
                 Customer: ${escapeHtml(task.customer_name || 'N/A')} | 
-                Due: ${task.follow_up_date || 'No date'}
+                Due: ${formatFollowUpDate(task.follow_up_date)}
             </div>
         </div>
     `).join('');
@@ -111,14 +323,14 @@ function displayUpcomingTasks(tasks) {
     }
     
     container.innerHTML = tasks.map(task => {
-        const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date();
+        const isOverdue = task.follow_up_date && new Date(task.follow_up_date) < new Date() && task.status !== 'Completed';
         const className = isOverdue ? 'overdue' : '';
         
         return `
             <div class="task-item ${className} clickable" onclick="openTask('${task.id}')" title="Click to edit">
                 <div class="task-item-title">${escapeHtml(task.title)}</div>
                 <div class="task-item-meta">
-                    Due: ${task.follow_up_date} | Priority: ${task.priority}
+                    Due: ${formatFollowUpDate(task.follow_up_date)} | Priority: ${task.priority}
                 </div>
             </div>
         `;
@@ -372,6 +584,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+function formatFollowUpDate(dateStr) {
+    if (!dateStr) return 'No date';
+    
+    // Check if it includes time
+    if (dateStr.includes('T') || (dateStr.includes(' ') && dateStr.length > 10)) {
+        const date = new Date(dateStr);
+        // Format with both date and time
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        return date.toLocaleDateString(undefined, dateOptions) + ' ' + date.toLocaleTimeString(undefined, timeOptions);
+    } else {
+        // Just date
+        const date = new Date(dateStr + 'T00:00:00');
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString(undefined, dateOptions);
+    }
 }
 
 function displayActiveObjectives(objectives) {

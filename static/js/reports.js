@@ -245,7 +245,7 @@ function displayReport(tasks) {
                 <td>${escapeHtml(task.assigned_to || '-')}</td>
                 <td><span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span></td>
                 <td><span class="priority-${task.priority.toLowerCase()}">${task.priority}</span></td>
-                <td>${task.follow_up_date || '-'} ${isOverdue ? '<span style="color: red;">(Overdue)</span>' : ''}</td>
+                <td>${formatFollowUpDate(task.follow_up_date)} ${isOverdue ? '<span style="color: red;">(Overdue)</span>' : ''}</td>
                 <td class="description-cell">${escapeHtml(description)}</td>
                 <td>${commentsHTML}</td>
                 <td>${escapeHtml(task.tags || '-')}</td>
@@ -354,7 +354,7 @@ function generateTextReport() {
         content += `   Customer: ${task.customer_name || 'N/A'}\n`;
         content += `   Assigned To: ${task.assigned_to || 'N/A'}\n`;
         content += `   Status: ${task.status} | Priority: ${task.priority}\n`;
-        content += `   Due Date: ${task.follow_up_date || 'Not set'}\n`;
+        content += `   Due Date: ${formatFollowUpDate(task.follow_up_date)}\n`;
         
         // Add description
         if (task.description) {
@@ -457,6 +457,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+function formatFollowUpDate(dateStr) {
+    if (!dateStr) return '-';
+    
+    // Check if it includes time
+    if (dateStr.includes('T') || (dateStr.includes(' ') && dateStr.length > 10)) {
+        const date = new Date(dateStr);
+        // Format with both date and time
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        return date.toLocaleDateString(undefined, dateOptions) + ' ' + date.toLocaleTimeString(undefined, timeOptions);
+    } else {
+        // Just date
+        const date = new Date(dateStr + 'T00:00:00');
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString(undefined, dateOptions);
+    }
 }
 
 // ============= OKR Reporting Functions =============

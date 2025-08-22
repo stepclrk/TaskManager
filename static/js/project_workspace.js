@@ -201,7 +201,7 @@ function displayTasks(tasks) {
                         <div style="color: #666; font-size: 0.9em;">
                             ${task.customer_name ? `Customer: ${escapeHtml(task.customer_name)} | ` : ''}
                             ${task.assigned_to ? `Assigned to: ${escapeHtml(task.assigned_to)} | ` : ''}
-                            ${task.follow_up_date ? `Due: ${task.follow_up_date}` : 'No due date'}
+                            ${task.follow_up_date ? `Due: ${formatFollowUpDate(task.follow_up_date)}` : 'No due date'}
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px;">
@@ -304,7 +304,27 @@ function openTaskModal(taskId = null) {
             document.getElementById('description').value = task.description || '';
             document.getElementById('category').value = task.category || config.categories[0];
             document.getElementById('priority').value = task.priority || config.priorities[0];
-            document.getElementById('followUpDate').value = task.follow_up_date || '';
+            // Handle datetime-local input format
+            if (task.follow_up_date) {
+                // Convert to datetime-local format (YYYY-MM-DDTHH:MM)
+                let dateValue = task.follow_up_date;
+                // If it's just a date (YYYY-MM-DD), keep it as is for backward compatibility
+                if (dateValue.length === 10) {
+                    // Don't set a default time for existing date-only values
+                    document.getElementById('followUpDate').value = '';
+                    // Show the date in a user-friendly way
+                    document.getElementById('followUpDate').placeholder = dateValue + ' (no time set)';
+                } else {
+                    // If it already has time, ensure it's in the correct format
+                    if (dateValue.includes(' ')) {
+                        // Convert from display format back to input format if needed
+                        dateValue = dateValue.replace(' ', 'T').substring(0, 16);
+                    }
+                    document.getElementById('followUpDate').value = dateValue.substring(0, 16);
+                }
+            } else {
+                document.getElementById('followUpDate').value = '';
+            }
             document.getElementById('status').value = task.status || config.statuses[0];
             document.getElementById('assignedTo').value = task.assigned_to || '';
             document.getElementById('tags').value = task.tags || '';
@@ -433,4 +453,22 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+}
+
+function formatFollowUpDate(dateStr) {
+    if (!dateStr) return 'No date';
+    
+    // Check if it includes time
+    if (dateStr.includes('T') || (dateStr.includes(' ') && dateStr.length > 10)) {
+        const date = new Date(dateStr);
+        // Format with both date and time
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        return date.toLocaleDateString(undefined, dateOptions) + ' ' + date.toLocaleTimeString(undefined, timeOptions);
+    } else {
+        // Just date
+        const date = new Date(dateStr + 'T00:00:00');
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString(undefined, dateOptions);
+    }
 }

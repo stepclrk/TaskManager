@@ -131,14 +131,32 @@ echo.
 :: Start browser after a delay
 start "" timeout /t 2 /nobreak >nul && start http://localhost:%PORT%
 
-:: Try Waitress first, then fall back to Flask if it fails
-echo Attempting to start with Waitress production server...
-python -m waitress --port=%PORT% --threads=4 app:app
-if %errorlevel% neq 0 (
-    echo.
-    echo Waitress failed to start. Falling back to Flask development server...
-    echo.
+:: Check if we should use development mode for debugging
+if "%1"=="--debug" (
+    echo Starting in DEBUG mode with Flask development server...
+    set FLASK_ENV=development
+    set FLASK_DEBUG=1
     python app.py
+) else (
+    :: Run Waitress production server
+    echo Starting Waitress production server...
+    echo NOTE: Run with --debug flag to use Flask development server
+    echo.
+    python -m waitress --port=%PORT% --threads=4 app:app
+    
+    :: Check if Waitress failed to start (not user termination)
+    if %errorlevel% neq 0 (
+        if %errorlevel% neq -1073741510 (
+            :: Error code -1073741510 is CTRL-C, don't show error for that
+            echo.
+            echo ERROR: Waitress failed to start.
+            echo Possible causes:
+            echo - Port %PORT% is already in use
+            echo - Missing dependencies (run: pip install -r requirements.txt)
+            echo.
+            echo To run in development mode, use: run_task_manager.bat --debug
+        )
+    )
 )
 
 :: This will execute after the app is closed
