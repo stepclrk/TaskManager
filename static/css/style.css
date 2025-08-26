@@ -241,6 +241,13 @@ body {
     margin-bottom: 1rem;
 }
 
+.summary-item {
+    color: #444;
+    line-height: 1.6;
+    margin: 8px 0;
+    padding-left: 0;
+}
+
 .summary-list {
     list-style: none;
     padding: 0;

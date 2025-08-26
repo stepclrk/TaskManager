@@ -248,9 +248,14 @@ async function loadDashboard() {
         const response = await fetch('/api/tasks/summary');
         const summary = await response.json();
         
+        // Fetch projects to count open ones (Active, Planning, On Hold - not Completed)
+        const projectsResponse = await fetch('/api/projects');
+        const projects = await projectsResponse.json();
+        const openProjectsCount = projects.filter(p => p.status !== 'Completed').length;
+        
         document.getElementById('activeObjectives').textContent = summary.active_objectives || 0;
         document.getElementById('totalTasks').textContent = summary.total;
-        document.getElementById('openTasks').textContent = summary.open;
+        document.getElementById('openProjects').textContent = openProjectsCount;
         document.getElementById('dueToday').textContent = summary.due_today;
         document.getElementById('overdueTasksCount').textContent = summary.overdue;
         
@@ -395,8 +400,7 @@ function formatAISummary(text) {
         const isNumberedList = lines.some(line => /^\s*\d+[\.)]\s+/.test(line));
         
         if (isBulletList || isNumberedList) {
-            // Process as a list
-            html += '<ul class="summary-list">';
+            // Process list items as individual paragraphs without bullet marks
             lines.forEach(line => {
                 // Remove bullet points and clean up
                 const cleanLine = line
@@ -422,13 +426,19 @@ function formatAISummary(text) {
                             formattedValue = `<span class="highlight-completed">${value}</span>`;
                         }
                         
-                        html += `<li><strong>${key}:</strong> ${formattedValue}</li>`;
+                        html += `<p class="summary-item" style="margin: 8px 0;"><strong>${key}:</strong> ${formattedValue}</p>`;
                     } else {
-                        html += `<li>${cleanLine}</li>`;
+                        // Highlight important keywords in the line
+                        let highlightedLine = cleanLine
+                            .replace(/\b(\d+)\s+(task[s]?|item[s]?|ticket[s]?)/gi, '<strong>$1 $2</strong>')
+                            .replace(/\b(urgent|critical|high priority|important)/gi, '<span class="highlight-urgent">$1</span>')
+                            .replace(/\b(completed|done|finished|resolved)/gi, '<span class="highlight-completed">$1</span>')
+                            .replace(/\b(pending|in progress|ongoing)/gi, '<span class="highlight-pending">$1</span>');
+                        
+                        html += `<p class="summary-item" style="margin: 8px 0;">${highlightedLine}</p>`;
                     }
                 }
             });
-            html += '</ul>';
         } else if (paragraph.trim()) {
             // Check if it's a heading (starts with uppercase and is short)
             if (paragraph.length < 50 && /^[A-Z]/.test(paragraph) && !paragraph.includes('.')) {

@@ -47,12 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // AI Provider selection handler
     document.getElementById('aiProvider').addEventListener('change', handleAiProviderChange);
     
-    // T5 Model button
-    const t5Btn = document.getElementById('initializeT5Btn');
-    if (t5Btn) {
-        t5Btn.addEventListener('click', initializeT5Model);
-    }
-    
     document.getElementById('addCategoryBtn').addEventListener('click', () => addItem('categories'));
     document.getElementById('addStatusBtn').addEventListener('click', () => addItem('statuses'));
     document.getElementById('addPriorityBtn').addEventListener('click', () => addItem('priorities'));
@@ -117,11 +111,6 @@ function updateAiStatusMessage() {
             statusMessage.style.color = '#856404';
             statusMessage.innerHTML = '⚠️ <strong>Claude AI Disabled</strong> - Add your API key to enable AI features.';
         }
-    } else if (aiProvider === 't5') {
-        statusMessage.style.display = 'block';
-        statusMessage.style.background = '#d4edda';
-        statusMessage.style.color = '#155724';
-        statusMessage.innerHTML = '🤖 <strong>T5-Base AI Model</strong> - Advanced local AI for comprehensive task analysis.';
     } else if (aiProvider === 'none') {
         statusMessage.style.display = 'block';
         statusMessage.style.background = '#d1ecf1';
@@ -133,101 +122,20 @@ function updateAiStatusMessage() {
 function handleAiProviderChange() {
     const provider = document.getElementById('aiProvider').value;
     const claudeConfig = document.getElementById('claudeConfig');
-    const t5Config = document.getElementById('t5Config');
     const noneConfig = document.getElementById('noneConfig');
     
     // Hide all configs first
     claudeConfig.style.display = 'none';
-    t5Config.style.display = 'none';
     noneConfig.style.display = 'none';
     
     // Show the appropriate one
     if (provider === 'claude') {
         claudeConfig.style.display = 'block';
-    } else if (provider === 't5') {
-        t5Config.style.display = 'block';
-        checkT5ModelStatus();
     } else if (provider === 'none') {
         noneConfig.style.display = 'block';
     }
     
     updateAiStatusMessage();
-}
-
-// T5 Model Management Functions
-let t5StatusInterval = null;
-
-async function checkT5ModelStatus() {
-    try {
-        const response = await fetch('/api/ai/t5/status');
-        const status = await response.json();
-        
-        const statusText = document.getElementById('t5StatusText');
-        const progressDiv = document.getElementById('t5Progress');
-        const progressBar = document.getElementById('t5ProgressBar');
-        const progressText = document.getElementById('t5ProgressText');
-        const initBtn = document.getElementById('initializeT5Btn');
-        
-        if (status.loading) {
-            statusText.textContent = 'Loading...';
-            progressDiv.style.display = 'block';
-            progressBar.style.width = `${status.progress}%`;
-            progressText.textContent = status.status || 'Initializing...';
-            initBtn.disabled = true;
-            initBtn.textContent = 'Initializing...';
-            
-            // Continue checking status
-            if (!t5StatusInterval) {
-                t5StatusInterval = setInterval(checkT5ModelStatus, 1000);
-            }
-        } else if (status.loaded) {
-            statusText.textContent = '✅ Ready';
-            progressDiv.style.display = 'none';
-            initBtn.disabled = true;
-            initBtn.textContent = 'Model Loaded';
-            
-            // Stop checking
-            if (t5StatusInterval) {
-                clearInterval(t5StatusInterval);
-                t5StatusInterval = null;
-            }
-        } else {
-            statusText.textContent = 'Not loaded';
-            progressDiv.style.display = 'none';
-            initBtn.disabled = false;
-            initBtn.textContent = 'Initialize T5 Model';
-            
-            // Stop checking
-            if (t5StatusInterval) {
-                clearInterval(t5StatusInterval);
-                t5StatusInterval = null;
-            }
-        }
-    } catch (error) {
-        console.error('Error checking T5 model status:', error);
-    }
-}
-
-async function initializeT5Model() {
-    try {
-        const response = await fetch('/api/ai/t5/initialize', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('T5 model initialization started. This may take a few minutes...', 'info');
-            checkT5ModelStatus();
-        } else {
-            showNotification('Failed to initialize T5 model: ' + result.error, 'error');
-        }
-    } catch (error) {
-        showNotification('Error initializing T5 model: ' + error.message, 'error');
-    }
 }
 
 

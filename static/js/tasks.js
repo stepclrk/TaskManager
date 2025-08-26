@@ -16,21 +16,21 @@ async function checkApiKey() {
         
         // Set flags for different AI capabilities
         window.hasApiKey = (aiProvider === 'claude' && settings.api_key && settings.api_key !== '');
-        window.aiEnabled = (aiProvider === 'claude' || aiProvider === 't5');  // AI features for Claude and T5
+        window.aiEnabled = (aiProvider === 'claude');  // AI features for Claude only
         window.canGenerateFollowUp = true;  // All providers can generate follow-ups
-        window.canEnhanceText = (aiProvider === 'claude' || aiProvider === 't5');  // Claude and T5 can enhance text
-        window.canGenerateSummary = window.aiEnabled;  // Claude and T5 only
+        window.canEnhanceText = (aiProvider === 'claude');  // Claude can enhance text
+        window.canGenerateSummary = window.aiEnabled;  // Claude only
         
         // Show/hide AI features based on provider
         const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
         const enhanceTextBtn = document.getElementById('enhanceTextBtn');
         
-        // Generate Follow-up is available for all providers (Claude, T5, None)
+        // Generate Follow-up is available for all providers (Claude, None)
         if (generateFollowUpBtn) {
             generateFollowUpBtn.style.display = 'inline-block';
         }
         
-        // AI Enhance is available with Claude and T5
+        // AI Enhance is available with Claude
         if (enhanceTextBtn) {
             enhanceTextBtn.style.display = window.canEnhanceText ? 'inline-block' : 'none';
         }
@@ -1072,7 +1072,7 @@ async function enhanceText() {
     
     // Check if AI is available
     if (!window.canEnhanceText) {
-        alert('AI text enhancement is not available. Please configure Claude or T5 in Settings.');
+        alert('AI text enhancement is not available. Please configure Claude in Settings.');
         return;
     }
     
@@ -1158,7 +1158,7 @@ function showSummaryModal() {
     }
     
     if (!window.aiEnabled) {
-        alert('Please configure Claude or T5 in Settings to use AI summary features');
+        alert('Please configure Claude in Settings to use AI summary features');
         return;
     }
     

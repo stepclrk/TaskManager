@@ -587,22 +587,6 @@ def test_api_key():
         else:
             return jsonify({'success': False, 'error': result.get('error', 'API key test failed')}), 400
     
-    elif ai_provider == 't5':
-        # Check if T5 model is loaded
-        try:
-            from t5_task_analyzer import get_analyzer_instance
-            analyzer = get_analyzer_instance()
-            status = analyzer.get_model_status()
-            
-            if status['loaded']:
-                return jsonify({'success': True, 'message': 'T5 model is ready and operational'})
-            elif status['loading']:
-                return jsonify({'success': False, 'error': 'T5 model is still loading...'}), 503
-            else:
-                return jsonify({'success': False, 'error': 'T5 model not initialized'}), 503
-        except:
-            return jsonify({'success': False, 'error': 'T5 model not available'}), 503
-    
     elif ai_provider == 'none':
         # Local summary mode is always ready
         return jsonify({'success': True, 'message': 'Template mode is ready'})
@@ -610,35 +594,6 @@ def test_api_key():
     else:
         return jsonify({'success': False, 'error': f'Unknown AI provider: {ai_provider}'}), 400
 
-# T5 Model endpoints
-@app.route('/api/ai/t5/status', methods=['GET'])
-def get_t5_model_status():
-    """Get the current status of the T5 model"""
-    try:
-        from t5_task_analyzer import get_analyzer_instance
-        analyzer = get_analyzer_instance()
-        return jsonify(analyzer.get_model_status())
-    except:
-        return jsonify({'loaded': False, 'loading': False, 'progress': 0, 'status': 'Not initialized'})
-
-@app.route('/api/ai/t5/initialize', methods=['POST'])
-def initialize_t5_model():
-    """Initialize the T5 model in background"""
-    def init_model():
-        try:
-            from t5_task_analyzer import get_analyzer_instance
-            analyzer = get_analyzer_instance()
-            analyzer._initialize_model()
-        except Exception as e:
-            print(f"Error initializing T5 model: {e}")
-    
-    # Start initialization in background thread
-    import threading
-    thread = threading.Thread(target=init_model)
-    thread.daemon = True
-    thread.start()
-    
-    return jsonify({'success': True, 'message': 'T5 model initialization started'})
 
 @app.route('/api/ai/summary', methods=['POST'])
 def ai_summary():

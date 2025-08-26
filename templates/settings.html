@@ -33,7 +33,6 @@
                         <label for="aiProvider">AI Provider</label>
                         <select id="aiProvider" class="form-control">
                             <option value="claude">Claude (Anthropic API)</option>
-                            <option value="t5">T5-Base (Local AI Model)</option>
                             <option value="none">None (Template-Based)</option>
                         </select>
                         <small>Choose your AI provider for task analysis</small>
@@ -42,30 +41,6 @@
                         <label for="apiKey">Claude API Key</label>
                         <input type="password" id="apiKey" placeholder="sk-ant-...">
                         <small>Enter your Anthropic API key for Claude features</small>
-                    </div>
-                    <div id="t5Config" class="form-group" style="display: none;">
-                        <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                            <div id="t5ModelStatus" style="margin-bottom: 10px;">
-                                <strong>T5-Base Model Status:</strong> <span id="t5StatusText">Not loaded</span>
-                                <div id="t5Progress" style="display: none; margin-top: 10px;">
-                                    <div style="background: #e9ecef; border-radius: 4px; height: 20px; position: relative;">
-                                        <div id="t5ProgressBar" style="background: #007bff; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
-                                    </div>
-                                    <small id="t5ProgressText" style="display: block; margin-top: 5px;"></small>
-                                </div>
-                            </div>
-                            <button type="button" id="initializeT5Btn" class="btn btn-secondary">Initialize T5 Model</button>
-                            <p style="margin-top: 10px; margin-bottom: 0;">
-                                <strong>T5-Base Features:</strong><br>
-                                • Intelligent task summarization<br>
-                                • Priority classification (High/Medium/Low)<br>
-                                • Task categorization (Bug/Feature/Docs/etc)<br>
-                                • Deadline extraction<br>
-                                • Effort estimation<br>
-                                • Next steps generation<br>
-                                <small style="display: block; margin-top: 5px;">First-time setup downloads ~580MB model. Works offline after download.</small>
-                            </p>
-                        </div>
                     </div>
                     <div id="noneConfig" class="form-group" style="display: none;">
                         <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
@@ -87,7 +62,6 @@
                     </ul>
                     <small style="display: block; margin-top: 10px;">
                         <strong>Claude:</strong> Most powerful, cloud-based, requires API key<br>
-                        <strong>T5-Base:</strong> Local AI model, good balance of features and privacy<br>
                         <strong>None:</strong> Template-based, fastest, no AI required
                     </small>
                 </div>

@@ -1,5 +1,5 @@
 """
-AI Helper module for handling Anthropic Claude API, T5 model, and local summary generation
+AI Helper module for handling Anthropic Claude API and local summary generation
 """
 import json
 import requests
@@ -118,105 +118,7 @@ def call_ai_api(settings: Dict[str, Any], prompt: str, task_type: str = 'general
             return {'success': True, 'text': summary_text}
         else:
             # For non-summarization tasks with 'none' provider
-            return {'success': False, 'error': 'AI features are disabled. Please select Claude or T5 as the AI provider.'}
-    
-    elif ai_provider == 't5':
-        # Use T5 model for text generation
-        try:
-            from t5_task_analyzer import get_analyzer_instance, TaskAnalyzer
-            
-            analyzer = get_analyzer_instance()
-            
-            # Check if model is loaded
-            status = analyzer.get_model_status()
-            if not status['loaded'] and not status['loading']:
-                return {'success': False, 'error': 'T5 model not loaded. Please wait for initialization.'}
-            
-            # Handle different task types
-            if task_type == 'summarization':
-                # Extract content from prompt
-                if 'Task data:\n' in prompt:
-                    content = prompt.split('Task data:\n', 1)[1].strip()
-                else:
-                    content = prompt
-                
-                # Analyze tasks and create comprehensive summary
-                analysis = analyzer.analyze_task(content)
-                
-                # Build summary from analysis
-                summary_parts = []
-                
-                # Add priority information
-                if analysis['priority'] == 'high':
-                    summary_parts.append(f"🔴 HIGH PRIORITY: {analysis['summary']}")
-                elif analysis['priority'] == 'medium':
-                    summary_parts.append(f"🟡 MEDIUM PRIORITY: {analysis['summary']}")
-                else:
-                    summary_parts.append(f"🟢 {analysis['summary']}")
-                
-                # Add category and effort
-                summary_parts.append(f"Category: {analysis['category'].replace('_', ' ').title()}")
-                summary_parts.append(f"Effort: {analysis['effort_estimate'].title()}")
-                
-                # Add deadline if found
-                if analysis['deadline']:
-                    summary_parts.append(f"Deadline: {analysis['deadline']}")
-                
-                # Add next steps
-                if analysis['next_steps']:
-                    summary_parts.append("\nRecommended actions:")
-                    for i, step in enumerate(analysis['next_steps'][:3], 1):
-                        summary_parts.append(f"{i}. {step}")
-                
-                return {'success': True, 'text': '\n'.join(summary_parts)}
-            
-            elif task_type == 'enhancement':
-                # Use professional text enhancement system for T5
-                try:
-                    from t5_text_enhancer import enhance_text_for_task_manager
-                    
-                    # Extract the actual text from the prompt
-                    # The prompt format is: "Improve the clarity...:\n\nText to enhance:\n{actual_text}"
-                    if "Text to enhance:" in prompt:
-                        actual_text = prompt.split("Text to enhance:")[-1].strip()
-                    else:
-                        actual_text = prompt
-                    
-                    # Extract context if available
-                    context = {}
-                    if "Priority:" in prompt:
-                        priority_match = re.search(r'Priority:\s*(\w+)', prompt)
-                        if priority_match:
-                            context['priority'] = priority_match.group(1)
-                    if "Task:" in prompt:
-                        task_match = re.search(r'Task:\s*([^\n]+)', prompt)
-                        if task_match:
-                            context['title'] = task_match.group(1)
-                    
-                    # Enhance the text using the professional system
-                    enhanced = enhance_text_for_task_manager(actual_text, context)
-                    return {'success': True, 'text': enhanced}
-                    
-                except ImportError:
-                    # Fallback to basic T5 generation if enhancer not available
-                    enhanced = analyzer._generate_text(prompt, max_new_tokens=200)
-                    return {'success': True, 'text': enhanced}
-            
-            elif task_type == 'generation':
-                # Follow-up message generation
-                generated = analyzer._generate_text(f"write a follow-up message for: {prompt}", max_new_tokens=300)
-                return {'success': True, 'text': generated}
-            
-            else:
-                # General text processing
-                result = analyzer._generate_text(prompt, max_new_tokens=max_tokens)
-                return {'success': True, 'text': result}
-                
-        except ImportError:
-            return {'success': False, 'error': 'T5 model not available. Please install required dependencies.'}
-        except Exception as e:
-            logger.error(f"T5 processing error: {e}")
-            return {'success': False, 'error': f'T5 processing failed: {str(e)}'}
+            return {'success': False, 'error': 'AI features are disabled. Please select Claude as the AI provider.'}
     
     else:
         # Use Claude (default)
