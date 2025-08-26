@@ -100,6 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
         generateSummaryBtn.addEventListener('click', showSummaryModal);
     }
     
+    // Add listener for AI enhance button
+    const enhanceTextBtn = document.getElementById('enhanceTextBtn');
+    if (enhanceTextBtn) {
+        enhanceTextBtn.addEventListener('click', enhanceText);
+    }
+    
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', function() {
             this.closest('.modal').style.display = 'none';
@@ -1029,6 +1035,100 @@ function showErrorIndicator(element) {
 }
 
 // Task Summary Functions
+async function enhanceText() {
+    // Get text from the description editor
+    const descriptionEditor = document.getElementById('descriptionEditor');
+    const descriptionField = document.getElementById('description');
+    
+    let currentText = '';
+    if (descriptionEditor) {
+        currentText = descriptionEditor.innerText || descriptionEditor.textContent || '';
+    }
+    if (!currentText && descriptionField) {
+        currentText = descriptionField.value;
+    }
+    
+    if (!currentText.trim()) {
+        alert('Please enter some text to enhance');
+        return;
+    }
+    
+    // Check if AI is available
+    if (!window.canEnhanceText) {
+        alert('AI text enhancement is not available. Please configure Claude or T5 in Settings.');
+        return;
+    }
+    
+    // Show enhancement options
+    const enhancementType = prompt(
+        'Choose enhancement type:\n' +
+        '1. Improve clarity and readability\n' +
+        '2. Fix grammar and spelling\n' +
+        '3. Make more professional\n\n' +
+        'Enter 1, 2, or 3 (or press Cancel):'
+    );
+    
+    if (!enhancementType) return;
+    
+    const types = {
+        '1': 'improve',
+        '2': 'grammar',
+        '3': 'professional'
+    };
+    
+    const type = types[enhancementType] || 'improve';
+    
+    try {
+        // Show loading state
+        if (descriptionEditor) {
+            const originalContent = descriptionEditor.innerHTML;
+            descriptionEditor.innerHTML = '<i>Enhancing text...</i>';
+            
+            // Get task context for better enhancement
+            const taskContext = {
+                title: document.getElementById('title').value,
+                customer_name: document.getElementById('customerName').value,
+                priority: document.getElementById('priority').value
+            };
+            
+            const response = await fetch('/api/ai/enhance-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: currentText,
+                    type: type,
+                    task_context: taskContext
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                // Update the editor with enhanced text
+                descriptionEditor.innerHTML = data.enhanced_text;
+                descriptionEditor.textContent = data.enhanced_text;
+                // Also update the hidden field
+                if (descriptionField) {
+                    descriptionField.value = data.enhanced_text;
+                }
+            } else {
+                // Restore original content on error
+                descriptionEditor.innerHTML = originalContent;
+                const error = await response.json();
+                alert('Failed to enhance text: ' + (error.error || 'Unknown error'));
+            }
+        }
+    } catch (error) {
+        console.error('Error enhancing text:', error);
+        alert('Failed to enhance text. Please try again.');
+        // Restore original content
+        if (descriptionEditor) {
+            descriptionEditor.innerHTML = currentText;
+        }
+    }
+}
+
 function showSummaryModal() {
     if (!currentTask && !document.getElementById('title').value) {
         alert('Please enter task details first or save the task');
