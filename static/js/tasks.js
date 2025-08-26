@@ -88,6 +88,25 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('taskForm').addEventListener('submit', saveTask);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
     
+    // Sync description editor content to hidden field as user types
+    const descEditor = document.getElementById('descriptionEditor');
+    if (descEditor) {
+        // Multiple events to ensure we capture the content
+        ['input', 'blur', 'keyup', 'paste', 'cut'].forEach(event => {
+            descEditor.addEventListener(event, function() {
+                const hiddenDesc = document.getElementById('description');
+                if (hiddenDesc) {
+                    const content = this.innerText || this.textContent || '';
+                    hiddenDesc.value = content;
+                    console.log(`Description synced on ${event}:`, content);
+                }
+            });
+        });
+        
+        // Also ensure contenteditable is properly set
+        descEditor.setAttribute('contenteditable', 'true');
+    }
+    
     // Only add listener if API key exists
     const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
     if (generateFollowUpBtn) {
@@ -469,12 +488,12 @@ function editTask(taskId) {
             if (quillInstance) {
                 quillInstance.setText(descriptionValue);
             } else {
-                // No Quill, just set as HTML
-                descriptionEditor.innerHTML = descriptionValue ? `<p>${descriptionValue}</p>` : '';
+                // No Quill, just set text content
+                descriptionEditor.textContent = descriptionValue || '';
             }
         } else {
-            // Fallback to setting innerHTML
-            descriptionEditor.innerHTML = descriptionValue ? `<p>${descriptionValue}</p>` : '';
+            // Fallback to setting text content directly
+            descriptionEditor.textContent = descriptionValue || '';
         }
     }
     
@@ -513,35 +532,31 @@ function editTask(taskId) {
 async function saveTask(e) {
     e.preventDefault();
     
-    // Get description from rich editor if it exists, otherwise from hidden field
+    // Get description - simplified approach focusing on the contenteditable div
     let descriptionValue = '';
     const descriptionEditor = document.getElementById('descriptionEditor');
+    const descriptionField = document.getElementById('description');
     
-    // Check if Quill editor exists
+    // Primary: Get from contenteditable div
     if (descriptionEditor) {
-        // Try to get Quill instance
-        if (window.quillEditor) {
-            // If we have a global Quill instance
-            descriptionValue = window.quillEditor.root.innerText || '';
-        } else if (descriptionEditor.__quill) {
-            // If Quill instance is attached to the element
-            descriptionValue = descriptionEditor.__quill.root.innerText || '';
-        } else if (typeof Quill !== 'undefined' && Quill.find) {
-            // Try to find Quill instance
-            const quillInstance = Quill.find(descriptionEditor);
-            if (quillInstance) {
-                descriptionValue = quillInstance.root.innerText || '';
-            }
-        } else {
-            // Fallback to getting text content from the div
-            descriptionValue = descriptionEditor.innerText || descriptionEditor.textContent || '';
+        // Get text content, handling various browser differences
+        const text = descriptionEditor.innerText || descriptionEditor.textContent || '';
+        descriptionValue = text.trim();
+        console.log('Description from editor:', descriptionValue);
+        
+        // Also update the hidden field to keep in sync
+        if (descriptionField) {
+            descriptionField.value = descriptionValue;
         }
     }
     
-    // If we still don't have a value, try the hidden input as last resort
-    if (!descriptionValue) {
-        descriptionValue = document.getElementById('description').value || '';
+    // Fallback: If no editor or empty, try hidden field
+    if (!descriptionValue && descriptionField) {
+        descriptionValue = descriptionField.value || '';
+        console.log('Description from hidden field (fallback):', descriptionValue);
     }
+    
+    console.log('Final description value being saved:', descriptionValue);
     
     const taskData = {
         title: document.getElementById('title').value,
@@ -556,6 +571,8 @@ async function saveTask(e) {
         topic_id: document.getElementById('taskObjective').value || null,
         project_id: document.getElementById('taskProject').value || null
     };
+    
+    console.log('Full task data being sent:', JSON.stringify(taskData, null, 2));
     
     try {
         const taskId = document.getElementById('taskId').value;
@@ -1105,8 +1122,7 @@ async function enhanceText() {
             
             if (response.ok) {
                 const data = await response.json();
-                // Update the editor with enhanced text
-                descriptionEditor.innerHTML = data.enhanced_text;
+                // Update the editor with enhanced text (use textContent to avoid HTML issues)
                 descriptionEditor.textContent = data.enhanced_text;
                 // Also update the hidden field
                 if (descriptionField) {

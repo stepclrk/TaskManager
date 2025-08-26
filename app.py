@@ -1479,9 +1479,9 @@ def enhance_text():
     task_context = data.get('task_context', None)  # Optional task context
     
     prompts = {
-        'improve': 'Improve the clarity and readability of this text while maintaining its meaning:',
-        'grammar': 'Fix any grammar and spelling errors in this text:',
-        'professional': 'Rewrite this text in a more professional tone:'
+        'improve': 'Improve the clarity and readability of this text while maintaining its meaning. Return ONLY the improved text, no explanations or meta-text:',
+        'grammar': 'Fix any grammar and spelling errors in this text. Return ONLY the corrected text, no explanations:',
+        'professional': 'Rewrite this text in a more professional tone. Return ONLY the rewritten text, no explanations:'
     }
     
     # Build prompt with optional context

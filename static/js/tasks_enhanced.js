@@ -175,51 +175,9 @@ function setupEnhancedEventListeners() {
         });
     }
     
-    // AI text enhancement
-    const enhanceBtn = document.getElementById('enhanceTextBtn');
-    if (enhanceBtn) {
-        enhanceBtn.addEventListener('click', async () => {
-            if (!quillEditor) return;
-            
-            const text = quillEditor.getText();
-            if (!text.trim()) {
-                alert('Please enter some text to enhance');
-                return;
-            }
-            
-            const types = ['improve', 'grammar', 'professional'];
-            const type = types[prompt('Choose:\n1. Improve clarity\n2. Fix grammar\n3. Professional tone\n\nEnter 1, 2, or 3:') - 1] || 'improve';
-            
-            try {
-                // Get current task context
-                const taskContext = currentTask || {
-                    title: document.getElementById('title').value,
-                    customer_name: document.getElementById('customerName').value,
-                    priority: document.getElementById('priority').value,
-                    comments: currentTask?.comments || []
-                };
-                
-                const response = await fetch('/api/ai/enhance-text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        text, 
-                        type,
-                        task_context: taskContext
-                    })
-                });
-                
-                const data = await response.json();
-                if (response.ok && data.enhanced_text) {
-                    if (confirm('Replace with enhanced version?')) {
-                        quillEditor.setText(data.enhanced_text);
-                    }
-                }
-            } catch (error) {
-                console.error('Error enhancing text:', error);
-            }
-        });
-    }
+    // AI text enhancement - Disabled to avoid duplicate event listeners
+    // The enhance button click handler is already set up in tasks.js
+    // This prevents the enhancement type prompt from appearing twice
     
     // Similar tasks detection on title change
     const titleInput = document.getElementById('title');

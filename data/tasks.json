@@ -103,7 +103,7 @@
   {
     "title": "task",
     "customer_name": "asdf",
-    "description": "This is a test",
+    "description": "This communication represents a routine task of low priority. I am pleased to provide the following professional response: This is a test.",
     "category": "Development",
     "priority": "Low",
     "follow_up_date": "",
@@ -128,6 +128,13 @@
         "field": "description",
         "old_value": "",
         "new_value": "This is a test"
+      },
+      {
+        "timestamp": "2025-08-26T12:51:16.590236",
+        "action": "modified",
+        "field": "description",
+        "old_value": "This is a test",
+        "new_value": "This communication represents a routine task of low priority. I am pleased to provide the following professional response: This is a test."
       }
     ],
     "comments": [],
