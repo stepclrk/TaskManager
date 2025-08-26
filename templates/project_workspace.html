@@ -6,6 +6,7 @@
     <title>Topic Workspace</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/enhanced.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
         /* Modal Styles */
         .modal {
@@ -429,7 +430,8 @@
                 
                 <div class="form-group">
                     <label for="projDescription">Description</label>
-                    <textarea id="projDescription" rows="4"></textarea>
+                    <div id="projDescriptionEditor" style="height: 150px; background: white;"></div>
+                    <textarea id="projDescription" style="display: none;" rows="4"></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -521,6 +523,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/static/js/project_workspace.js"></script>
 </body>
 </html>

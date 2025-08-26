@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager - Objectives</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
         .objectives-container {
             display: grid;
@@ -330,7 +331,8 @@
                                 ✨ Enhance with AI
                             </button>
                         </label>
-                        <textarea id="objectiveDescription" placeholder="Explain the importance and impact of this objective"></textarea>
+                        <div id="objectiveDescriptionEditor" style="height: 150px; background: white;"></div>
+                        <textarea id="objectiveDescription" style="display: none;" placeholder="Explain the importance and impact of this objective"></textarea>
                     </div>
                     
                     <div class="form-group">
@@ -486,6 +488,7 @@
         }
     </style>
 
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/static/js/objectives.js"></script>
     <script>
         // OKR-specific functions

@@ -823,12 +823,27 @@ def ai_summary():
     # Combine objectives and tasks for the prompt
     all_descriptions = objectives_text + task_descriptions
     
-    # Enhanced prompt for better actionable summary
-    prompt = f"""Provide an actionable executive summary with these sections:
-1. URGENT: What needs immediate attention (overdue/due today)
-2. PRIORITIES: Top 3 tasks to focus on based on priority and deadlines
-3. WORKLOAD: Brief overview of overall task status
-4. RECOMMENDATION: Suggested action plan for today
+    # Enhanced prompt for consistent structure
+    prompt = f"""Generate a task summary using EXACTLY this structure (use these exact section headers):
+
+**🚨 URGENT ITEMS:**
+List any overdue or due-today tasks. If none, write "No urgent items."
+
+**📌 PRIORITY ITEMS:**
+List the top 3 high/critical priority tasks. Focus on tasks marked as High or Critical priority.
+
+**📅 DUE ITEMS:**
+List upcoming tasks with deadlines in the next 7 days (excluding today's items already mentioned).
+
+**💡 RECOMMENDATIONS:**
+Provide 2-3 specific action recommendations for task management and productivity.
+
+Important instructions:
+- Use bullet points (•) for each item under sections
+- Keep each item to one line
+- Be specific with task names
+- Do not use "Summary:" or similar prefixes
+- Do not add any other sections or formatting
 
 Task data:
 """ + "\n".join(all_descriptions)

@@ -4,6 +4,7 @@ let objectiveTasks = [];
 let currentTask = null;
 let config = {};
 let keyResultCounter = 0;
+let workspaceQuillEditor = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const objectiveId = getObjectiveIdFromUrl();
@@ -11,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadObjective(objectiveId);
         loadConfig();
     }
+    
+    // Initialize Quill editor
+    initializeWorkspaceQuillEditor();
     
     document.getElementById('addTaskBtn').addEventListener('click', showAddTaskModal);
     document.getElementById('editObjectiveBtn').addEventListener('click', showEditObjectiveModal);
@@ -72,6 +76,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function initializeWorkspaceQuillEditor() {
+    const container = document.getElementById('objDescriptionEditor');
+    if (!container) return;
+    
+    workspaceQuillEditor = new Quill('#objDescriptionEditor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['link'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Explain why this objective matters...'
+    });
+    
+    // Store reference on the container
+    container.__quill = workspaceQuillEditor;
+}
+
 function getObjectiveIdFromUrl() {
     const pathParts = window.location.pathname.split('/');
     return pathParts[pathParts.length - 1];
@@ -124,7 +151,15 @@ function populateSelect(id, options) {
 function displayObjectiveInfo() {
     document.getElementById('objectiveTitle').textContent = currentObjective.title;
     document.getElementById('breadcrumbTitle').textContent = currentObjective.title;
-    document.getElementById('objectiveDescription').textContent = currentObjective.description || 'No description provided';
+    
+    // Display rich text description
+    const descriptionElement = document.getElementById('objectiveDescription');
+    const description = currentObjective.description || 'No description provided';
+    if (description.includes('<') && description.includes('>')) {
+        descriptionElement.innerHTML = description;
+    } else {
+        descriptionElement.textContent = description;
+    }
     
     // Set status badge
     const statusElement = document.getElementById('objectiveStatus');
@@ -342,7 +377,17 @@ async function deleteCurrentObjective() {
 function showEditObjectiveModal() {
     // Populate the edit form with current objective data
     document.getElementById('objTitle').value = currentObjective.title || '';
-    document.getElementById('objDescription').value = currentObjective.description || '';
+    
+    // Set description in Quill editor
+    const description = currentObjective.description || '';
+    document.getElementById('objDescription').value = description;
+    if (workspaceQuillEditor) {
+        if (description.includes('<') && description.includes('>')) {
+            workspaceQuillEditor.root.innerHTML = description;
+        } else {
+            workspaceQuillEditor.setText(description);
+        }
+    }
     document.getElementById('objType').value = currentObjective.objective_type || 'aspirational';
     document.getElementById('objPeriod').value = currentObjective.period || 'Q1';
     document.getElementById('objStatus').value = currentObjective.status || 'Active';
@@ -375,9 +420,19 @@ async function saveObjective(e) {
         okrScore = totalProgress / keyResults.length;
     }
     
+    // Get rich text content from Quill
+    let descriptionValue = '';
+    if (workspaceQuillEditor) {
+        descriptionValue = workspaceQuillEditor.root.innerHTML;
+        // Update hidden textarea
+        document.getElementById('objDescription').value = descriptionValue;
+    } else {
+        descriptionValue = document.getElementById('objDescription').value;
+    }
+    
     const updatedData = {
         title: document.getElementById('objTitle').value,
-        description: document.getElementById('objDescription').value,
+        description: descriptionValue,
         objective_type: document.getElementById('objType').value,
         period: document.getElementById('objPeriod').value,
         status: document.getElementById('objStatus').value,

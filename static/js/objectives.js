@@ -1,11 +1,36 @@
 // Objectives management JavaScript
 let allObjectives = [];
 let filteredObjectives = [];
+let objectiveQuillEditor = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadObjectives();
     setupEventListeners();
+    initializeQuillEditor();
 });
+
+function initializeQuillEditor() {
+    const container = document.getElementById('objectiveDescriptionEditor');
+    if (!container) return;
+    
+    objectiveQuillEditor = new Quill('#objectiveDescriptionEditor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['link'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Explain the importance and impact of this objective...'
+    });
+    
+    // Store reference on the container
+    container.__quill = objectiveQuillEditor;
+}
 
 function setupEventListeners() {
     // Modal controls
@@ -185,7 +210,18 @@ function openModal(objectiveId = null) {
             modalTitle.textContent = 'Edit Objective';
             document.getElementById('objectiveId').value = objective.id;
             document.getElementById('objectiveTitle').value = objective.title;
-            document.getElementById('objectiveDescription').value = objective.description || '';
+            
+            // Set description in Quill editor
+            const description = objective.description || '';
+            document.getElementById('objectiveDescription').value = description;
+            if (objectiveQuillEditor) {
+                if (description.includes('<') && description.includes('>')) {
+                    objectiveQuillEditor.root.innerHTML = description;
+                } else {
+                    objectiveQuillEditor.setText(description);
+                }
+            }
+            
             document.getElementById('objectiveType').value = objective.objective_type || 'aspirational';
             document.getElementById('objectivePeriod').value = objective.period || 'Q1';
             document.getElementById('objectiveStatus').value = objective.status || 'Active';
@@ -230,6 +266,12 @@ function openModal(objectiveId = null) {
     } else {
         modalTitle.textContent = 'New Objective';
         form.reset();
+        
+        // Clear Quill editor
+        if (objectiveQuillEditor) {
+            objectiveQuillEditor.setText('');
+        }
+        
         document.getElementById('objectiveStatus').value = 'Active';
         document.getElementById('objectiveType').value = 'aspirational';
         document.getElementById('objectiveConfidence').value = 50;
@@ -313,9 +355,19 @@ async function handleSubmit(event) {
         ? keyResults.reduce((sum, kr) => sum + kr.progress, 0) / keyResults.length 
         : 0;
     
+    // Get rich text content from Quill
+    let descriptionValue = '';
+    if (objectiveQuillEditor) {
+        descriptionValue = objectiveQuillEditor.root.innerHTML;
+        // Update hidden textarea
+        document.getElementById('objectiveDescription').value = descriptionValue;
+    } else {
+        descriptionValue = document.getElementById('objectiveDescription').value;
+    }
+    
     const objectiveData = {
         title: document.getElementById('objectiveTitle').value,
-        description: document.getElementById('objectiveDescription').value,
+        description: descriptionValue,
         objective_type: document.getElementById('objectiveType').value,
         period: document.getElementById('objectivePeriod').value,
         status: document.getElementById('objectiveStatus').value,

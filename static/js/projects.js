@@ -1,11 +1,36 @@
 // Topics management JavaScript
 let allTopics = [];
 let filteredTopics = [];
+let topicQuillEditor = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadTopics();
     setupEventListeners();
+    initializeQuillEditor();
 });
+
+function initializeQuillEditor() {
+    const container = document.getElementById('topicDescriptionEditor');
+    if (!container) return;
+    
+    topicQuillEditor = new Quill('#topicDescriptionEditor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['link'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Describe the topic and its goals...'
+    });
+    
+    // Store reference on the container
+    container.__quill = topicQuillEditor;
+}
 
 function setupEventListeners() {
     // Modal controls
@@ -120,7 +145,7 @@ function renderTopics() {
                 </div>
                 
                 <div class="topic-description">
-                    ${escapeHtml(topic.description)}
+                    ${topic.description || ''}
                 </div>
                 
                 <div class="topic-meta">
@@ -173,13 +198,30 @@ function openModal(topicId = null) {
             modalTitle.textContent = 'Edit Topic';
             document.getElementById('topicId').value = topic.id;
             document.getElementById('topicTitle').value = topic.title;
-            document.getElementById('topicDescription').value = topic.description;
+            
+            // Set description in Quill editor
+            const description = topic.description || '';
+            document.getElementById('topicDescription').value = description;
+            if (topicQuillEditor) {
+                if (description.includes('<') && description.includes('>')) {
+                    topicQuillEditor.root.innerHTML = description;
+                } else {
+                    topicQuillEditor.setText(description);
+                }
+            }
+            
             document.getElementById('topicStatus').value = topic.status;
             document.getElementById('topicTargetDate').value = topic.target_date || '';
         }
     } else {
         modalTitle.textContent = 'New Topic';
         form.reset();
+        
+        // Clear Quill editor
+        if (topicQuillEditor) {
+            topicQuillEditor.setText('');
+        }
+        
         document.getElementById('topicStatus').value = 'Planning';
     }
     
@@ -231,9 +273,20 @@ async function handleSubmit(event) {
     event.preventDefault();
     
     const topicId = document.getElementById('topicId').value;
+    
+    // Get rich text content from Quill
+    let descriptionValue = '';
+    if (topicQuillEditor) {
+        descriptionValue = topicQuillEditor.root.innerHTML;
+        // Update hidden textarea
+        document.getElementById('topicDescription').value = descriptionValue;
+    } else {
+        descriptionValue = document.getElementById('topicDescription').value;
+    }
+    
     const topicData = {
         title: document.getElementById('topicTitle').value,
-        description: document.getElementById('topicDescription').value,
+        description: descriptionValue,
         status: document.getElementById('topicStatus').value,
         target_date: document.getElementById('topicTargetDate').value || null
     };

@@ -6,6 +6,7 @@
     <title>Objective Workspace</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/enhanced.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
         /* Modal Styles */
         .modal {
@@ -479,7 +480,8 @@
                     
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label for="objDescription">Why this matters</label>
-                        <textarea id="objDescription" rows="4"></textarea>
+                        <div id="objDescriptionEditor" style="height: 150px; background: white;"></div>
+                        <textarea id="objDescription" style="display: none;"></textarea>
                     </div>
                     
                     <div class="form-group">
@@ -612,6 +614,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/static/js/objective_workspace.js"></script>
 </body>
 </html>

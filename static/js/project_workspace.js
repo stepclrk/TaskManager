@@ -3,6 +3,7 @@ let currentProject = null;
 let projectTasks = [];
 let config = {};
 let saveTimeout = null;
+let projQuillEditor = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const projectId = window.location.pathname.split('/').pop();
@@ -10,7 +11,31 @@ document.addEventListener('DOMContentLoaded', function() {
     loadProject(projectId);
     loadProjectTasks(projectId);
     setupEventListeners();
+    initializeProjQuillEditor();
 });
+
+function initializeProjQuillEditor() {
+    const container = document.getElementById('projDescriptionEditor');
+    if (!container) return;
+    
+    projQuillEditor = new Quill('#projDescriptionEditor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['link'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Describe the project...'
+    });
+    
+    // Store reference on the container
+    container.__quill = projQuillEditor;
+}
 
 function setupEventListeners() {
     // Edit project button
@@ -117,8 +142,14 @@ function displayProjectDetails() {
     statusBadge.textContent = currentProject.status;
     statusBadge.className = `project-status-badge status-${currentProject.status.toLowerCase().replace(' ', '-')}`;
     
-    // Update description
-    document.getElementById('projectDescription').textContent = currentProject.description || 'No description available';
+    // Update description with rich text support
+    const descElement = document.getElementById('projectDescription');
+    const description = currentProject.description || 'No description available';
+    if (description.includes('<') && description.includes('>')) {
+        descElement.innerHTML = description;
+    } else {
+        descElement.textContent = description;
+    }
     
     // Update dates
     document.getElementById('targetDate').textContent = currentProject.target_date || 'Not set';
@@ -251,7 +282,18 @@ async function deleteCurrentProject() {
 function openEditProjectModal() {
     const modal = document.getElementById('editProjectModal');
     document.getElementById('projTitle').value = currentProject.title;
-    document.getElementById('projDescription').value = currentProject.description;
+    
+    // Set description in Quill editor
+    const description = currentProject.description || '';
+    document.getElementById('projDescription').value = description;
+    if (projQuillEditor) {
+        if (description.includes('<') && description.includes('>')) {
+            projQuillEditor.root.innerHTML = description;
+        } else {
+            projQuillEditor.setText(description);
+        }
+    }
+    
     document.getElementById('projStatus').value = currentProject.status;
     document.getElementById('projTargetDate').value = currentProject.target_date || '';
     modal.style.display = 'block';
@@ -264,9 +306,19 @@ function closeEditProjectModal() {
 async function saveProjectChanges(e) {
     e.preventDefault();
     
+    // Get rich text content from Quill
+    let descriptionValue = '';
+    if (projQuillEditor) {
+        descriptionValue = projQuillEditor.root.innerHTML;
+        // Update hidden textarea
+        document.getElementById('projDescription').value = descriptionValue;
+    } else {
+        descriptionValue = document.getElementById('projDescription').value;
+    }
+    
     const updatedData = {
         title: document.getElementById('projTitle').value,
-        description: document.getElementById('projDescription').value,
+        description: descriptionValue,
         status: document.getElementById('projStatus').value,
         target_date: document.getElementById('projTargetDate').value || null
     };
