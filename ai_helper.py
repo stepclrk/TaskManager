@@ -15,79 +15,139 @@ def create_local_summary(content: str) -> str:
     Create a local summary without using AI models
     This provides a structured summary of tasks with overdue alerts and recommendations
     """
-    # Count actual tasks, not section headers
-    overdue_count = 0
-    due_today_count = 0
+    # Parse task data more comprehensively
+    overdue_tasks = []
+    due_today_tasks = []
+    due_tomorrow_tasks = []
+    high_priority_tasks = []
+    critical_priority_tasks = []
+    categories = {}
+    statuses = {}
+    customers = {}
     
-    for line in content.split('\n'):
+    lines = content.split('\n')
+    
+    for line in lines:
         if line.strip().startswith('-'):
-            if 'OVERDUE' in line:
-                overdue_count += 1
-            elif 'DUE TODAY' in line:
-                due_today_count += 1
+            # Extract task details
+            task_info = line.strip()[1:].strip()
+            
+            # Check for overdue/due status
+            if 'OVERDUE' in task_info:
+                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
+                overdue_tasks.append(task_name.strip())
+            elif 'DUE TODAY' in task_info:
+                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
+                due_today_tasks.append(task_name.strip())
+            elif 'Due Tomorrow' in task_info:
+                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
+                due_tomorrow_tasks.append(task_name.strip())
+            
+            # Extract priority
+            if 'Critical' in task_info:
+                task_name = task_info.split(' (')[0] if ' (' in task_info else task_info
+                critical_priority_tasks.append(task_name.strip())
+            elif 'High' in task_info:
+                task_name = task_info.split(' (')[0] if ' (' in task_info else task_info
+                high_priority_tasks.append(task_name.strip())
+            
+            # Extract category
+            if 'Category:' in task_info:
+                cat_match = task_info.split('Category:')[1].split(',')[0].strip()
+                categories[cat_match] = categories.get(cat_match, 0) + 1
+            
+            # Extract status
+            if 'Status:' in task_info:
+                status_match = task_info.split('Status:')[1].split(',')[0].strip()
+                statuses[status_match] = statuses.get(status_match, 0) + 1
+            
+            # Extract customer
+            for part in task_info.split(','):
+                if part.strip() and not any(keyword in part for keyword in ['Category:', 'Status:', 'Priority:', 'OVERDUE', 'DUE TODAY']):
+                    # This might be a customer name
+                    customer = part.strip().split(' (')[0]
+                    if customer and len(customer) < 50:  # Reasonable customer name length
+                        customers[customer] = customers.get(customer, 0) + 1
     
-    task_lines = [l for l in content.split('\n') if l.strip().startswith('-')]
-    task_count = len(task_lines)
-    high_priority = content.count('High') + content.count('Critical')
+    # Count totals
+    task_count = len([l for l in lines if l.strip().startswith('-')])
+    overdue_count = len(overdue_tasks)
+    due_today_count = len(due_today_tasks)
+    due_tomorrow_count = len(due_tomorrow_tasks)
+    high_priority_count = len(high_priority_tasks) + len(critical_priority_tasks)
     
-    # Extract priority task names
-    overdue_task = ""
-    critical_task = ""
-    high_task = ""
+    # Build comprehensive summary
+    summary_parts = []
     
-    for line in content.split('\n'):
-        if 'OVERDUE' in line and not overdue_task:
-            # Extract task name from overdue line
-            if line.strip().startswith('-'):
-                parts = line.strip()[1:].strip().split(' - ')
-                if parts:
-                    overdue_task = parts[0].strip()
-        elif 'Critical' in line and not critical_task:
-            if line.strip().startswith('-'):
-                parts = line.strip()[1:].strip().split(' (')
-                if parts:
-                    critical_task = parts[0].strip()
-        elif 'High' in line and not high_task:
-            if line.strip().startswith('-'):
-                parts = line.strip()[1:].strip().split(' (')
-                if parts:
-                    high_task = parts[0].strip()
-    
-    # Build summary text
-    summary_text = ""
-    
+    # Critical alerts section
     if overdue_count > 0:
-        summary_text = f"⚠️ URGENT: {overdue_count} task{'s are' if overdue_count > 1 else ' is'} overdue and needs immediate attention"
-        if overdue_task:
-            summary_text += f". Start with '{overdue_task}'"
-        summary_text += ". "
+        summary_parts.append(f"🔴 CRITICAL ALERT: {overdue_count} task{'s' if overdue_count > 1 else ''} overdue!")
+        if overdue_tasks and overdue_tasks[0]:
+            summary_parts.append(f"Immediate action needed on: {overdue_tasks[0][:50]}")
     elif due_today_count > 0:
-        summary_text = f"📅 IMPORTANT: {due_today_count} task{'s are' if due_today_count > 1 else ' is'} due today. "
-    else:
-        summary_text = ""
+        summary_parts.append(f"⚠️ TIME SENSITIVE: {due_today_count} task{'s' if due_today_count > 1 else ''} due today")
+        if due_today_tasks and due_today_tasks[0]:
+            summary_parts.append(f"Priority for today: {due_today_tasks[0][:50]}")
     
-    # Add specific priority task mentions
-    priority_mention = ""
-    if critical_task:
-        priority_mention = f"Critical priority: '{critical_task}'"
-    elif high_task:
-        priority_mention = f"High priority: '{high_task}'"
+    # Task overview section
+    summary_parts.append(f"\n📊 TASK OVERVIEW")
+    summary_parts.append(f"Total Active Tasks: {task_count}")
     
-    summary_text += f"You have {task_count} active tasks total with {high_priority} high-priority items. "
+    if critical_priority_tasks:
+        summary_parts.append(f"Critical Priority: {len(critical_priority_tasks)}")
+    if high_priority_tasks:
+        summary_parts.append(f"High Priority: {len(high_priority_tasks)}")
+    if due_tomorrow_count > 0:
+        summary_parts.append(f"Due Tomorrow: {due_tomorrow_count}")
     
-    if priority_mention:
-        summary_text += f"{priority_mention}. "
+    # Category breakdown if available
+    if categories and len(categories) > 1:
+        summary_parts.append(f"\n📁 BY CATEGORY")
+        top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:3]
+        for category, count in top_categories:
+            summary_parts.append(f"{category}: {count} task{'s' if count > 1 else ''}")
     
+    # Status distribution if varied
+    if statuses and len(statuses) > 1:
+        summary_parts.append(f"\n📈 STATUS BREAKDOWN")
+        for status, count in sorted(statuses.items(), key=lambda x: x[1], reverse=True):
+            if status in ['Open', 'In Progress', 'Pending']:
+                summary_parts.append(f"{status}: {count}")
+    
+    # Top customers if available
+    if customers:
+        summary_parts.append(f"\n👥 KEY CUSTOMERS")
+        top_customers = sorted(customers.items(), key=lambda x: x[1], reverse=True)[:3]
+        for customer, count in top_customers:
+            if count > 1:
+                summary_parts.append(f"{customer}: {count} tasks")
+    
+    # Action recommendations
+    summary_parts.append(f"\n💡 RECOMMENDATIONS")
     if overdue_count > 0:
-        summary_text += "Focus on clearing overdue items immediately."
+        summary_parts.append("• Clear overdue tasks immediately to prevent escalation")
+        if overdue_count > 3:
+            summary_parts.append("• Consider delegating or rescheduling lower priority items")
     elif due_today_count > 0:
-        summary_text += "Focus on completing today's deadlines."
-    elif high_priority > 0:
-        summary_text += "Focus on high-priority tasks next."
+        summary_parts.append("• Focus on today's deadlines first")
+        summary_parts.append("• Block time for uninterrupted work on critical items")
+    elif high_priority_count > 0:
+        summary_parts.append("• Address high-priority tasks while you have breathing room")
+        summary_parts.append("• Review upcoming deadlines to avoid last-minute rushes")
     else:
-        summary_text += "Stay on track with upcoming deadlines."
+        summary_parts.append("• Good position - use this time for strategic planning")
+        summary_parts.append("• Consider tackling complex tasks while workload is manageable")
     
-    return summary_text
+    # Workload assessment
+    summary_parts.append(f"\n📊 WORKLOAD ASSESSMENT")
+    if task_count > 20:
+        summary_parts.append("Heavy workload detected - consider prioritization strategies")
+    elif task_count > 10:
+        summary_parts.append("Moderate workload - maintain steady progress")
+    else:
+        summary_parts.append("Light workload - opportunity for proactive work")
+    
+    return '\n'.join(summary_parts)
 
 def call_ai_api(settings: Dict[str, Any], prompt: str, task_type: str = 'general', max_tokens: int = 500) -> Dict[str, Any]:
     """
