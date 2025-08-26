@@ -99,5 +99,369 @@
     "attachments": [],
     "dependencies": [],
     "blocks": []
+  },
+  {
+    "title": "task",
+    "customer_name": "asdf",
+    "description": "This is a test",
+    "category": "Development",
+    "priority": "Low",
+    "follow_up_date": "",
+    "status": "Open",
+    "assigned_to": "",
+    "tags": "",
+    "topic_id": null,
+    "project_id": null,
+    "id": "0cfb45c4-6761-47c3-9b3e-630c941bade8",
+    "created_date": "2025-08-26T08:46:03.663527",
+    "history": [
+      {
+        "timestamp": "2025-08-26T08:46:03.663541",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-26T09:07:45.467558",
+        "action": "modified",
+        "field": "description",
+        "old_value": "",
+        "new_value": "This is a test"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Implement user authentication system",
+    "customer_name": "Acme Corporation",
+    "description": "Design and implement a secure user authentication system with JWT tokens, password reset functionality, and two-factor authentication support.",
+    "category": "Development",
+    "priority": "High",
+    "follow_up_date": "2025-08-28T10:00",
+    "status": "In Progress",
+    "assigned_to": "Sarah Chen",
+    "tags": "security,backend,api",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-001-auth-system",
+    "created_date": "2025-08-26T10:00:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:00:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-26T09:20:51.146680",
+        "action": "modified",
+        "field": "follow_up_date",
+        "old_value": "2025-08-28T10:00",
+        "new_value": "2025-08-19T10:00"
+      },
+      {
+        "timestamp": "2025-08-26T10:08:06.761102",
+        "action": "modified",
+        "field": "follow_up_date",
+        "old_value": "2025-08-19T10:00",
+        "new_value": "2025-08-28T10:00"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Database performance optimization",
+    "customer_name": "TechStart Inc",
+    "description": "Analyze slow queries, add necessary indexes, and optimize database schema for better performance. Current response times are averaging 3-5 seconds for complex queries.",
+    "category": "DevOps",
+    "priority": "High",
+    "follow_up_date": "2025-08-27T14:30",
+    "status": "Open",
+    "assigned_to": "Mike Johnson",
+    "tags": "database,performance,optimization",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-002-db-optimize",
+    "created_date": "2025-08-26T10:05:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:05:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Mobile app UI redesign",
+    "customer_name": "Digital Solutions Ltd",
+    "description": "Redesign the mobile app interface to improve user experience. Include new color scheme, updated navigation, and better accessibility features. Update the app's interface to make it easier to use.",
+    "category": "",
+    "priority": "Medium",
+    "follow_up_date": "2025-08-30T09:00",
+    "status": "Open",
+    "assigned_to": "Emma Wilson",
+    "tags": "ui,mobile,design",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-003-mobile-ui",
+    "created_date": "2025-08-26T10:10:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:10:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-26T09:18:21.540580",
+        "action": "modified",
+        "field": "description",
+        "old_value": "Redesign the mobile app interface to improve user experience. Include new color scheme, updated navigation, and better accessibility features.",
+        "new_value": "Redesign the mobile app interface to improve user experience. Include new color scheme, updated navigation, and better accessibility features. Update the app's interface to make it easier to use."
+      },
+      {
+        "timestamp": "2025-08-26T09:18:21.540590",
+        "action": "modified",
+        "field": "category",
+        "old_value": "Design",
+        "new_value": ""
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Customer data migration",
+    "customer_name": "Global Retail Co",
+    "description": "Migrate customer data from legacy CRM system to new cloud-based solution. Approximately 50,000 customer records need to be transferred with data validation.",
+    "category": "",
+    "priority": "High",
+    "follow_up_date": "2025-08-26T16:00",
+    "status": "",
+    "assigned_to": "David Kim",
+    "tags": "migration,data,crm",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-004-data-migration",
+    "created_date": "2025-08-26T10:15:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:15:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      },
+      {
+        "timestamp": "2025-08-26T10:05:53.810484",
+        "action": "modified",
+        "field": "category",
+        "old_value": "Data Migration",
+        "new_value": ""
+      },
+      {
+        "timestamp": "2025-08-26T10:05:53.810503",
+        "action": "modified",
+        "field": "follow_up_date",
+        "old_value": "2025-08-29T16:00",
+        "new_value": "2025-08-26T16:00"
+      },
+      {
+        "timestamp": "2025-08-26T10:05:53.810506",
+        "action": "modified",
+        "field": "status",
+        "old_value": "Planning",
+        "new_value": ""
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "API documentation update",
+    "customer_name": "StartupHub",
+    "description": "Update API documentation to reflect recent changes in endpoints, add example requests/responses, and include rate limiting information.",
+    "category": "Documentation",
+    "priority": "Low",
+    "follow_up_date": "2025-09-02T11:00",
+    "status": "Open",
+    "assigned_to": "Lisa Thompson",
+    "tags": "documentation,api",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-005-api-docs",
+    "created_date": "2025-08-26T10:20:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:20:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Security audit preparation",
+    "customer_name": "FinTech Solutions",
+    "description": "Prepare for upcoming security audit by reviewing access controls, updating security policies, and ensuring compliance with PCI DSS standards.",
+    "category": "Security",
+    "priority": "Critical",
+    "follow_up_date": "2025-08-27T09:00",
+    "status": "In Progress",
+    "assigned_to": "Robert Zhang",
+    "tags": "security,audit,compliance",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-006-security-audit",
+    "created_date": "2025-08-26T10:25:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:25:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Implement automated testing suite",
+    "customer_name": "WebDev Agency",
+    "description": "Set up automated testing framework with unit tests, integration tests, and end-to-end tests. Target 80% code coverage for critical components.",
+    "category": "Testing",
+    "priority": "Medium",
+    "follow_up_date": "2025-09-05T15:00",
+    "status": "Planning",
+    "assigned_to": "Jennifer Park",
+    "tags": "testing,automation,quality",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-007-testing-suite",
+    "created_date": "2025-08-26T10:30:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:30:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Cloud infrastructure cost optimization",
+    "customer_name": "CloudFirst Inc",
+    "description": "Review current cloud infrastructure usage, identify underutilized resources, and implement cost-saving measures. Current monthly bill is $15,000.",
+    "category": "DevOps",
+    "priority": "Medium",
+    "follow_up_date": "2025-08-31T13:00",
+    "status": "Open",
+    "assigned_to": "Thomas Anderson",
+    "tags": "cloud,aws,cost-optimization",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-008-cloud-costs",
+    "created_date": "2025-08-26T10:35:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:35:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Customer support chatbot integration",
+    "customer_name": "E-Commerce Plus",
+    "description": "Integrate AI-powered chatbot for customer support to handle common queries, reduce support ticket volume by 40%, and provide 24/7 assistance.",
+    "category": "Development",
+    "priority": "Medium",
+    "follow_up_date": "2025-09-10T10:00",
+    "status": "Research",
+    "assigned_to": "Maria Garcia",
+    "tags": "ai,chatbot,customer-support",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-009-chatbot",
+    "created_date": "2025-08-26T10:40:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:40:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
+  },
+  {
+    "title": "Performance monitoring dashboard",
+    "customer_name": "Analytics Pro",
+    "description": "Create real-time performance monitoring dashboard showing system metrics, error rates, response times, and user activity. Include alerting for anomalies.",
+    "category": "Monitoring",
+    "priority": "High",
+    "follow_up_date": "2025-08-28T11:30",
+    "status": "In Progress",
+    "assigned_to": "Kevin Liu",
+    "tags": "monitoring,dashboard,metrics",
+    "topic_id": null,
+    "project_id": null,
+    "id": "task-010-monitoring",
+    "created_date": "2025-08-26T10:45:00.000000",
+    "history": [
+      {
+        "timestamp": "2025-08-26T10:45:00.000000",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
   }
 ]

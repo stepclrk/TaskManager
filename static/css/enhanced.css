@@ -135,6 +135,23 @@
     min-height: 150px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.rich-editor:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.rich-editor:empty:before {
+    content: "Enter task description...";
+    color: #999;
 }
 
 .ai-btn {

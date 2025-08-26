@@ -10,26 +10,37 @@ async function checkApiKey() {
         const response = await fetch('/api/settings');
         const settings = await response.json();
         
-        // Check if API key exists
-        if (settings.api_key && settings.api_key !== '') {
-            window.hasApiKey = true;
-        } else {
-            window.hasApiKey = false;
-        }
+        // Check AI provider and API key
+        const aiProvider = settings.ai_provider || 'claude';
+        window.aiProvider = aiProvider;
         
-        // Show/hide AI features
+        // Set flags for different AI capabilities
+        window.hasApiKey = (aiProvider === 'claude' && settings.api_key && settings.api_key !== '');
+        window.aiEnabled = (aiProvider === 'claude' || aiProvider === 't5');  // AI features for Claude and T5
+        window.canGenerateFollowUp = true;  // All providers can generate follow-ups
+        window.canEnhanceText = (aiProvider === 'claude' || aiProvider === 't5');  // Claude and T5 can enhance text
+        window.canGenerateSummary = window.aiEnabled;  // Claude and T5 only
+        
+        // Show/hide AI features based on provider
         const generateFollowUpBtn = document.getElementById('generateFollowUpBtn');
         const enhanceTextBtn = document.getElementById('enhanceTextBtn');
         
+        // Generate Follow-up is available for all providers (Claude, T5, None)
         if (generateFollowUpBtn) {
-            generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+            generateFollowUpBtn.style.display = 'inline-block';
         }
+        
+        // AI Enhance is available with Claude and T5
         if (enhanceTextBtn) {
-            enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+            enhanceTextBtn.style.display = window.canEnhanceText ? 'inline-block' : 'none';
         }
     } catch (error) {
         console.error('Error checking API key:', error);
         window.hasApiKey = false;
+        window.aiEnabled = false;
+        window.canGenerateFollowUp = false;
+        window.canEnhanceText = false;
+        window.canGenerateSummary = false;
     }
 }
 
@@ -380,6 +391,19 @@ function showAddTaskModal() {
     document.getElementById('modalTitle').textContent = 'Add Task';
     document.getElementById('taskForm').reset();
     document.getElementById('taskObjective').value = ''; // Clear topic selection
+    
+    // Explicitly clear the description editor
+    const descriptionEditor = document.getElementById('descriptionEditor');
+    if (descriptionEditor) {
+        descriptionEditor.innerHTML = '';
+        descriptionEditor.textContent = '';
+    }
+    // Also clear the hidden description field
+    const descriptionField = document.getElementById('description');
+    if (descriptionField) {
+        descriptionField.value = '';
+    }
+    
     document.getElementById('taskModal').style.display = 'block';
     
     // Update AI button visibility
@@ -388,10 +412,10 @@ function showAddTaskModal() {
     const generateSummaryBtn = document.getElementById('generateSummaryBtn');
     
     if (generateFollowUpBtn) {
-        generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        generateFollowUpBtn.style.display = window.canGenerateFollowUp ? 'inline-block' : 'none';
     }
     if (enhanceTextBtn) {
-        enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        enhanceTextBtn.style.display = window.canEnhanceText ? 'inline-block' : 'none';
     }
     if (generateSummaryBtn) {
         generateSummaryBtn.style.display = 'none'; // Hide for new tasks
@@ -408,20 +432,46 @@ function editTask(taskId) {
     const generateSummaryBtn = document.getElementById('generateSummaryBtn');
     
     if (generateFollowUpBtn) {
-        generateFollowUpBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        generateFollowUpBtn.style.display = window.canGenerateFollowUp ? 'inline-block' : 'none';
     }
     if (enhanceTextBtn) {
-        enhanceTextBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        enhanceTextBtn.style.display = window.canEnhanceText ? 'inline-block' : 'none';
     }
     if (generateSummaryBtn) {
-        generateSummaryBtn.style.display = window.hasApiKey ? 'inline-block' : 'none'; // Show for existing tasks
+        generateSummaryBtn.style.display = window.canGenerateSummary ? 'inline-block' : 'none'; // Show for existing tasks
     }
     
     document.getElementById('modalTitle').textContent = 'Edit Task';
     document.getElementById('taskId').value = currentTask.id;
     document.getElementById('title').value = currentTask.title;
     document.getElementById('customerName').value = currentTask.customer_name || '';
-    document.getElementById('description').value = currentTask.description || '';
+    
+    // Set description in both the hidden field and the editor
+    const descriptionValue = currentTask.description || '';
+    document.getElementById('description').value = descriptionValue;
+    
+    // Also set it in the rich editor if it exists
+    const descriptionEditor = document.getElementById('descriptionEditor');
+    if (descriptionEditor) {
+        // Try to set Quill content if it exists
+        if (window.quillEditor) {
+            window.quillEditor.setText(descriptionValue);
+        } else if (descriptionEditor.__quill) {
+            descriptionEditor.__quill.setText(descriptionValue);
+        } else if (typeof Quill !== 'undefined' && Quill.find) {
+            const quillInstance = Quill.find(descriptionEditor);
+            if (quillInstance) {
+                quillInstance.setText(descriptionValue);
+            } else {
+                // No Quill, just set as HTML
+                descriptionEditor.innerHTML = descriptionValue ? `<p>${descriptionValue}</p>` : '';
+            }
+        } else {
+            // Fallback to setting innerHTML
+            descriptionEditor.innerHTML = descriptionValue ? `<p>${descriptionValue}</p>` : '';
+        }
+    }
+    
     document.getElementById('category').value = currentTask.category || config.categories[0];
     document.getElementById('priority').value = currentTask.priority || config.priorities[0];
     // Handle datetime-local input format
@@ -457,10 +507,40 @@ function editTask(taskId) {
 async function saveTask(e) {
     e.preventDefault();
     
+    // Get description from rich editor if it exists, otherwise from hidden field
+    let descriptionValue = '';
+    const descriptionEditor = document.getElementById('descriptionEditor');
+    
+    // Check if Quill editor exists
+    if (descriptionEditor) {
+        // Try to get Quill instance
+        if (window.quillEditor) {
+            // If we have a global Quill instance
+            descriptionValue = window.quillEditor.root.innerText || '';
+        } else if (descriptionEditor.__quill) {
+            // If Quill instance is attached to the element
+            descriptionValue = descriptionEditor.__quill.root.innerText || '';
+        } else if (typeof Quill !== 'undefined' && Quill.find) {
+            // Try to find Quill instance
+            const quillInstance = Quill.find(descriptionEditor);
+            if (quillInstance) {
+                descriptionValue = quillInstance.root.innerText || '';
+            }
+        } else {
+            // Fallback to getting text content from the div
+            descriptionValue = descriptionEditor.innerText || descriptionEditor.textContent || '';
+        }
+    }
+    
+    // If we still don't have a value, try the hidden input as last resort
+    if (!descriptionValue) {
+        descriptionValue = document.getElementById('description').value || '';
+    }
+    
     const taskData = {
         title: document.getElementById('title').value,
         customer_name: document.getElementById('customerName').value,
-        description: document.getElementById('description').value,
+        description: descriptionValue,
         category: document.getElementById('category').value,
         priority: document.getElementById('priority').value,
         follow_up_date: document.getElementById('followUpDate').value,
@@ -539,9 +619,89 @@ async function generateFollowUp(tone) {
         title: document.getElementById('title').value,
         customer_name: document.getElementById('customerName').value,
         description: document.getElementById('description').value,
-        priority: document.getElementById('priority').value
+        priority: document.getElementById('priority').value,
+        follow_up_date: document.getElementById('followUpDate')?.value,
+        status: document.getElementById('status')?.value
     };
     
+    // If using 'none' provider, generate a template locally
+    if (window.aiProvider === 'none') {
+        // Create template based on tone and message type
+        let formattedMessage = '';
+        const customerName = taskData.customer_name || 'Customer';
+        const taskTitle = taskData.title || 'the task';
+        
+        if (messageType === 'email') {
+            // Email templates
+            if (tone === 'polite') {
+                formattedMessage = `Dear ${customerName},
+
+I hope this email finds you well. I wanted to follow up regarding "${taskTitle}".
+
+${taskData.description ? `As discussed, ${taskData.description}\n\n` : ''}We are currently working on this ${taskData.priority ? taskData.priority.toLowerCase() + ' priority' : ''} task${taskData.status ? ` and its status is: ${taskData.status}` : ''}.
+
+${taskData.follow_up_date ? `Our target completion date is ${new Date(taskData.follow_up_date).toLocaleDateString()}.` : 'We will keep you updated on our progress.'}
+
+Please let me know if you have any questions or need any additional information.
+
+Best regards,
+[Your Name]`;
+            } else if (tone === 'casual') {
+                formattedMessage = `Hi ${customerName},
+
+Quick update on "${taskTitle}"!
+
+${taskData.description ? `${taskData.description}\n\n` : ''}We're making good progress on this${taskData.status ? ` - current status: ${taskData.status}` : ''}.
+
+${taskData.follow_up_date ? `Looking to have this done by ${new Date(taskData.follow_up_date).toLocaleDateString()}.` : 'Will keep you posted!'}
+
+Let me know if you need anything!
+
+Thanks,
+[Your Name]`;
+            } else if (tone === 'forceful') {
+                formattedMessage = `${customerName},
+
+This is an urgent update regarding "${taskTitle}".
+
+${taskData.priority === 'Critical' || taskData.priority === 'High' ? 'This high-priority task requires immediate attention.\n\n' : ''}${taskData.description ? `Details: ${taskData.description}\n\n` : ''}Current Status: ${taskData.status || 'In Progress'}
+${taskData.follow_up_date ? `Deadline: ${new Date(taskData.follow_up_date).toLocaleDateString()}` : 'Timeline: ASAP'}
+
+Please respond at your earliest convenience to confirm receipt and any requirements.
+
+[Your Name]`;
+            }
+        } else {
+            // Chat message templates
+            if (tone === 'polite') {
+                formattedMessage = `Hi! Following up on "${taskTitle}". ${taskData.status ? `Current status: ${taskData.status}.` : 'Working on it now.'} ${taskData.follow_up_date ? `Target date: ${new Date(taskData.follow_up_date).toLocaleDateString()}.` : ''} Let me know if you have any questions!`;
+            } else if (tone === 'casual') {
+                formattedMessage = `Hey! Quick update on "${taskTitle}" - ${taskData.status ? `it's ${taskData.status.toLowerCase()}` : 'making progress'}. ${taskData.follow_up_date ? `Should be done by ${new Date(taskData.follow_up_date).toLocaleDateString()}.` : 'Will update you soon!'}`;
+            } else if (tone === 'forceful') {
+                formattedMessage = `URGENT: "${taskTitle}" ${taskData.priority === 'Critical' || taskData.priority === 'High' ? '(HIGH PRIORITY) ' : ''}${taskData.status ? `- Status: ${taskData.status}` : 'needs attention'}. ${taskData.follow_up_date ? `Due: ${new Date(taskData.follow_up_date).toLocaleDateString()}.` : 'Immediate action required.'} Please respond ASAP.`;
+            }
+        }
+        
+        // Display the template
+        if (messageType === 'email') {
+            messageDiv.innerHTML = `
+                <div class="message-preview email-preview">
+                    <div class="message-header">📧 Email Template</div>
+                    <div class="message-body">${escapeHtml(formattedMessage)}</div>
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="message-preview chat-preview">
+                    <div class="message-header">💬 Chat Message Template</div>
+                    <div class="message-body">${escapeHtml(formattedMessage)}</div>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    // Otherwise, use the API
     try {
         const response = await fetch('/api/ai/follow-up', {
             method: 'POST',
@@ -875,14 +1035,14 @@ function showSummaryModal() {
         return;
     }
     
-    // Show/hide summary button based on API key
+    // Show/hide summary button based on AI capability
     const generateSummaryBtn = document.getElementById('generateSummaryBtn');
     if (generateSummaryBtn) {
-        generateSummaryBtn.style.display = window.hasApiKey ? 'inline-block' : 'none';
+        generateSummaryBtn.style.display = window.canGenerateSummary ? 'inline-block' : 'none';
     }
     
-    if (!window.hasApiKey) {
-        alert('Please configure your API key in Settings to use AI features');
+    if (!window.aiEnabled) {
+        alert('Please configure Claude or T5 in Settings to use AI summary features');
         return;
     }
     

@@ -44,6 +44,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('notificationSettingsForm').addEventListener('submit', saveNotificationSettings);
     document.getElementById('testApiKeyBtn').addEventListener('click', testApiKey);
     
+    // AI Provider selection handler
+    document.getElementById('aiProvider').addEventListener('change', handleAiProviderChange);
+    
+    // T5 Model button
+    const t5Btn = document.getElementById('initializeT5Btn');
+    if (t5Btn) {
+        t5Btn.addEventListener('click', initializeT5Model);
+    }
+    
     document.getElementById('addCategoryBtn').addEventListener('click', () => addItem('categories'));
     document.getElementById('addStatusBtn').addEventListener('click', () => addItem('statuses'));
     document.getElementById('addPriorityBtn').addEventListener('click', () => addItem('priorities'));
@@ -73,27 +82,155 @@ async function loadSettings() {
         const response = await fetch('/api/settings');
         currentSettings = await response.json();
         
+        // Set AI provider
+        const aiProvider = currentSettings.ai_provider || 'claude';
+        document.getElementById('aiProvider').value = aiProvider;
+        
         document.getElementById('apiKey').value = currentSettings.api_key || '';
         document.getElementById('notificationsEnabled').checked = currentSettings.notifications_enabled;
         document.getElementById('checkInterval').value = currentSettings.check_interval || 60;
         
-        // Show AI status
-        const statusMessage = document.getElementById('aiStatusMessage');
-        if (currentSettings.api_key && currentSettings.api_key !== '') {
-            statusMessage.style.display = 'block';
-            statusMessage.style.background = '#d4edda';
-            statusMessage.style.color = '#155724';
-            statusMessage.innerHTML = '✅ <strong>AI Features Enabled</strong> - Your Claude API key is configured.';
-        } else {
-            statusMessage.style.display = 'block';
-            statusMessage.style.background = '#fff3cd';
-            statusMessage.style.color = '#856404';
-            statusMessage.innerHTML = '⚠️ <strong>AI Features Disabled</strong> - Add your Claude API key to enable AI features.';
-        }
+        // Show/hide appropriate configuration section
+        handleAiProviderChange();
+        
+        // Update AI status message
+        updateAiStatusMessage();
+        
     } catch (error) {
         console.error('Error loading settings:', error);
     }
 }
+
+function updateAiStatusMessage() {
+    const statusMessage = document.getElementById('aiStatusMessage');
+    const aiProvider = document.getElementById('aiProvider').value;
+    
+    if (aiProvider === 'claude') {
+        if (currentSettings.api_key && currentSettings.api_key !== '') {
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = '#d4edda';
+            statusMessage.style.color = '#155724';
+            statusMessage.innerHTML = '✅ <strong>Claude AI Enabled</strong> - Your API key is configured.';
+        } else {
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = '#fff3cd';
+            statusMessage.style.color = '#856404';
+            statusMessage.innerHTML = '⚠️ <strong>Claude AI Disabled</strong> - Add your API key to enable AI features.';
+        }
+    } else if (aiProvider === 't5') {
+        statusMessage.style.display = 'block';
+        statusMessage.style.background = '#d4edda';
+        statusMessage.style.color = '#155724';
+        statusMessage.innerHTML = '🤖 <strong>T5-Base AI Model</strong> - Advanced local AI for comprehensive task analysis.';
+    } else if (aiProvider === 'none') {
+        statusMessage.style.display = 'block';
+        statusMessage.style.background = '#d1ecf1';
+        statusMessage.style.color = '#0c5460';
+        statusMessage.innerHTML = '📊 <strong>Template Mode</strong> - Fast local processing without AI.';
+    }
+}
+
+function handleAiProviderChange() {
+    const provider = document.getElementById('aiProvider').value;
+    const claudeConfig = document.getElementById('claudeConfig');
+    const t5Config = document.getElementById('t5Config');
+    const noneConfig = document.getElementById('noneConfig');
+    
+    // Hide all configs first
+    claudeConfig.style.display = 'none';
+    t5Config.style.display = 'none';
+    noneConfig.style.display = 'none';
+    
+    // Show the appropriate one
+    if (provider === 'claude') {
+        claudeConfig.style.display = 'block';
+    } else if (provider === 't5') {
+        t5Config.style.display = 'block';
+        checkT5ModelStatus();
+    } else if (provider === 'none') {
+        noneConfig.style.display = 'block';
+    }
+    
+    updateAiStatusMessage();
+}
+
+// T5 Model Management Functions
+let t5StatusInterval = null;
+
+async function checkT5ModelStatus() {
+    try {
+        const response = await fetch('/api/ai/t5/status');
+        const status = await response.json();
+        
+        const statusText = document.getElementById('t5StatusText');
+        const progressDiv = document.getElementById('t5Progress');
+        const progressBar = document.getElementById('t5ProgressBar');
+        const progressText = document.getElementById('t5ProgressText');
+        const initBtn = document.getElementById('initializeT5Btn');
+        
+        if (status.loading) {
+            statusText.textContent = 'Loading...';
+            progressDiv.style.display = 'block';
+            progressBar.style.width = `${status.progress}%`;
+            progressText.textContent = status.status || 'Initializing...';
+            initBtn.disabled = true;
+            initBtn.textContent = 'Initializing...';
+            
+            // Continue checking status
+            if (!t5StatusInterval) {
+                t5StatusInterval = setInterval(checkT5ModelStatus, 1000);
+            }
+        } else if (status.loaded) {
+            statusText.textContent = '✅ Ready';
+            progressDiv.style.display = 'none';
+            initBtn.disabled = true;
+            initBtn.textContent = 'Model Loaded';
+            
+            // Stop checking
+            if (t5StatusInterval) {
+                clearInterval(t5StatusInterval);
+                t5StatusInterval = null;
+            }
+        } else {
+            statusText.textContent = 'Not loaded';
+            progressDiv.style.display = 'none';
+            initBtn.disabled = false;
+            initBtn.textContent = 'Initialize T5 Model';
+            
+            // Stop checking
+            if (t5StatusInterval) {
+                clearInterval(t5StatusInterval);
+                t5StatusInterval = null;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking T5 model status:', error);
+    }
+}
+
+async function initializeT5Model() {
+    try {
+        const response = await fetch('/api/ai/t5/initialize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('T5 model initialization started. This may take a few minutes...', 'info');
+            checkT5ModelStatus();
+        } else {
+            showNotification('Failed to initialize T5 model: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error initializing T5 model: ' + error.message, 'error');
+    }
+}
+
+
 
 async function loadConfig() {
     try {
@@ -145,12 +282,28 @@ function removeItem(type, index) {
 }
 
 async function testApiKey() {
+    const aiProvider = document.getElementById('aiProvider').value;
     const apiKey = document.getElementById('apiKey').value;
     const button = document.getElementById('testApiKeyBtn');
     const statusDiv = document.getElementById('aiStatusMessage');
     
-    if (!apiKey || apiKey === '') {
+    if (aiProvider === 'claude' && (!apiKey || apiKey === '')) {
         alert('Please enter an API key first');
+        return;
+    }
+    
+    if (aiProvider === 'none') {
+        // Local summary mode is always ready
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.color = '#155724';
+        statusDiv.innerHTML = '✅ <strong>Local Summary Mode Ready!</strong> - Summaries will be generated locally without AI.';
+        button.disabled = false;
+        button.textContent = 'Test Configuration';
+        
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 3000);
         return;
     }
     
@@ -169,7 +322,8 @@ async function testApiKey() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                api_key: apiKey
+                api_key: apiKey,
+                ai_provider: aiProvider
             })
         });
         
@@ -212,7 +366,10 @@ async function testApiKey() {
 async function saveApiSettings(e) {
     e.preventDefault();
     
+    const aiProvider = document.getElementById('aiProvider').value;
     const apiKey = document.getElementById('apiKey').value;
+    
+    currentSettings.ai_provider = aiProvider;
     
     if (!apiKey.startsWith('***')) {
         currentSettings.api_key = apiKey;
@@ -225,16 +382,20 @@ async function saveApiSettings(e) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                api_key: apiKey
+                api_key: apiKey,
+                ai_provider: aiProvider
             })
         });
         
         if (response.ok) {
-            if (apiKey && apiKey !== '') {
-                alert('API settings saved successfully!\n\nAI features are now enabled:\n• AI Summary on Dashboard\n• Generate Follow-up Messages\n• Text Enhancement in Tasks');
+            if (aiProvider === 'none') {
+                alert('AI settings saved successfully!\n\nLocal Summary Mode enabled - summaries will be generated without external AI.');
+            } else if (apiKey && apiKey !== '') {
+                alert('API settings saved successfully!\n\nClaude AI features are now enabled:\n• AI Summary on Dashboard\n• Generate Follow-up Messages\n• Text Enhancement in Tasks');
             } else {
                 alert('API key removed.\n\nAI features have been disabled.');
             }
+            loadSettings();
         }
     } catch (error) {
         console.error('Error saving API settings:', error);

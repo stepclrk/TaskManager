@@ -567,30 +567,90 @@ def ai_summary_cache_status():
 
 @app.route('/api/ai/test', methods=['POST'])
 def test_api_key():
-    """Test if the provided API key is valid"""
+    """Test if the AI configuration is valid"""
     data = request.json
     test_key = data.get('api_key')
+    ai_provider = data.get('ai_provider', 'claude')
     
-    if not test_key:
-        return jsonify({'success': False, 'error': 'No API key provided'}), 400
+    if ai_provider == 'claude':
+        if not test_key:
+            return jsonify({'success': False, 'error': 'No API key provided'}), 400
+        
+        # Create a simple test prompt
+        test_prompt = "Reply with just 'OK' if you can read this message."
+        
+        # Test the API key
+        result = call_ai_api({'api_key': test_key, 'ai_provider': 'claude'}, test_prompt, max_tokens=10)
+        
+        if result['success']:
+            return jsonify({'success': True, 'message': 'Claude API key is valid'})
+        else:
+            return jsonify({'success': False, 'error': result.get('error', 'API key test failed')}), 400
     
-    # Create a simple test prompt
-    test_prompt = "Reply with just 'OK' if you can read this message."
+    elif ai_provider == 't5':
+        # Check if T5 model is loaded
+        try:
+            from t5_task_analyzer import get_analyzer_instance
+            analyzer = get_analyzer_instance()
+            status = analyzer.get_model_status()
+            
+            if status['loaded']:
+                return jsonify({'success': True, 'message': 'T5 model is ready and operational'})
+            elif status['loading']:
+                return jsonify({'success': False, 'error': 'T5 model is still loading...'}), 503
+            else:
+                return jsonify({'success': False, 'error': 'T5 model not initialized'}), 503
+        except:
+            return jsonify({'success': False, 'error': 'T5 model not available'}), 503
     
-    # Test the API key
-    result = call_ai_api({'api_key': test_key}, test_prompt, max_tokens=10)
+    elif ai_provider == 'none':
+        # Local summary mode is always ready
+        return jsonify({'success': True, 'message': 'Template mode is ready'})
     
-    if result['success']:
-        return jsonify({'success': True, 'message': 'API key is valid'})
     else:
-        return jsonify({'success': False, 'error': result.get('error', 'API key test failed')}), 400
+        return jsonify({'success': False, 'error': f'Unknown AI provider: {ai_provider}'}), 400
+
+# T5 Model endpoints
+@app.route('/api/ai/t5/status', methods=['GET'])
+def get_t5_model_status():
+    """Get the current status of the T5 model"""
+    try:
+        from t5_task_analyzer import get_analyzer_instance
+        analyzer = get_analyzer_instance()
+        return jsonify(analyzer.get_model_status())
+    except:
+        return jsonify({'loaded': False, 'loading': False, 'progress': 0, 'status': 'Not initialized'})
+
+@app.route('/api/ai/t5/initialize', methods=['POST'])
+def initialize_t5_model():
+    """Initialize the T5 model in background"""
+    def init_model():
+        try:
+            from t5_task_analyzer import get_analyzer_instance
+            analyzer = get_analyzer_instance()
+            analyzer._initialize_model()
+        except Exception as e:
+            print(f"Error initializing T5 model: {e}")
+    
+    # Start initialization in background thread
+    import threading
+    thread = threading.Thread(target=init_model)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({'success': True, 'message': 'T5 model initialization started'})
 
 @app.route('/api/ai/summary', methods=['POST'])
 def ai_summary():
     settings = load_settings()
+    ai_provider = settings.get('ai_provider', 'claude')
     
-    if not settings.get('api_key'):
-        return jsonify({'error': 'API key not configured'}), 400
+    # Check configuration based on provider
+    if ai_provider == 'claude' and not settings.get('api_key'):
+        return jsonify({'error': 'Claude API key not configured'}), 400
+    elif ai_provider == 'none':
+        # Local summary mode doesn't need any configuration
+        pass
     
     # Get optional parameter to include completed/cancelled tasks
     data = request.get_json() or {}
@@ -660,35 +720,118 @@ def ai_summary():
             
             objectives_text.append(obj_info)
     
-    # Build tasks summary
+    # Build enhanced tasks summary with overdue detection
+    from datetime import datetime as dt, timedelta
+    today = dt.now().date()
+    tomorrow = today + timedelta(days=1)
+    week_from_now = today + timedelta(days=7)
+    
+    # Categorize tasks by urgency
+    overdue_tasks = []
+    due_today = []
+    due_tomorrow = []
+    due_this_week = []
+    high_priority = []
+    medium_priority = []
+    low_priority = []
+    no_date_tasks = []
+    
+    for task in open_tasks:
+        # Parse follow-up date
+        follow_up_date_str = task.get('follow_up_date', '')
+        due_status = ""
+        
+        if follow_up_date_str:
+            try:
+                # Handle both date and datetime formats
+                if 'T' in follow_up_date_str:
+                    follow_up_date = dt.fromisoformat(follow_up_date_str.split('T')[0]).date()
+                else:
+                    follow_up_date = dt.fromisoformat(follow_up_date_str).date()
+                
+                # Calculate due status
+                if follow_up_date < today:
+                    due_status = f"OVERDUE ({(today - follow_up_date).days} days)"
+                    overdue_tasks.append((task, due_status))
+                elif follow_up_date == today:
+                    due_status = "DUE TODAY"
+                    due_today.append((task, due_status))
+                elif follow_up_date == tomorrow:
+                    due_status = "DUE TOMORROW"
+                    due_tomorrow.append((task, due_status))
+                elif follow_up_date <= week_from_now:
+                    due_status = f"Due in {(follow_up_date - today).days} days"
+                    due_this_week.append((task, due_status))
+                else:
+                    due_status = f"Due {follow_up_date.strftime('%Y-%m-%d')}"
+            except:
+                pass
+        
+        # Also categorize by priority if not already in urgent lists
+        # Check if task ID is in any of the urgent lists
+        task_id = task.get('id')
+        urgent_task_ids = [t[0].get('id') for t in overdue_tasks + due_today + due_tomorrow]
+        if task_id not in urgent_task_ids:
+            priority = task.get('priority', 'Medium')
+            if priority == 'Critical' or priority == 'High':
+                high_priority.append((task, due_status))
+            elif priority == 'Medium':
+                medium_priority.append((task, due_status))
+            elif priority == 'Low':
+                low_priority.append((task, due_status))
+            else:
+                no_date_tasks.append((task, due_status))
+    
+    # Build structured task descriptions
     task_descriptions = []
-    if open_tasks:
-        task_descriptions.append("\n**Open Tasks:**")
-        for task in open_tasks[:20]:
-            task_info = f"- {task.get('title', 'Untitled')}: {task.get('description', 'No description')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})"
-            
-            # Add objective association
-            if task.get('topic_id'):
-                obj = next((t for t in topics if t['id'] == task['topic_id']), None)
-                if obj:
-                    task_info += f" [Objective: {obj['title']}]"
-            
-            # Add comments if they exist
-            if task.get('comments') and len(task['comments']) > 0:
-                recent_comments = task['comments'][-2:]  # Get last 2 comments
-                comments_text = '; '.join([f"Comment: {c.get('text', '')}" for c in recent_comments])
-                task_info += f" [{comments_text}]"
-            
-            # Add dependencies info if they exist
-            if task.get('dependencies') and len(task['dependencies']) > 0:
-                task_info += f" (Depends on {len(task['dependencies'])} other tasks)"
-            
-            task_descriptions.append(task_info)
+    
+    # Add overdue tasks first
+    if overdue_tasks:
+        task_descriptions.append("\n**⚠️ OVERDUE TASKS (Immediate Action Required):**")
+        for task, due_status in overdue_tasks[:5]:  # Limit to top 5
+            task_descriptions.append(f"- {task.get('title', 'Untitled')} - {due_status} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})")
+    
+    # Add tasks due today
+    if due_today:
+        task_descriptions.append("\n**🔴 DUE TODAY:**")
+        for task, due_status in due_today:
+            task_descriptions.append(f"- {task.get('title', 'Untitled')} (Priority: {task.get('priority', 'Medium')}, Customer: {task.get('customer_name', 'N/A')})")
+    
+    # Add tasks due tomorrow
+    if due_tomorrow:
+        task_descriptions.append("\n**🟡 DUE TOMORROW:**")
+        for task, due_status in due_tomorrow:
+            task_descriptions.append(f"- {task.get('title', 'Untitled')} (Priority: {task.get('priority', 'Medium')})")
+    
+    # Add high priority tasks
+    if high_priority:
+        task_descriptions.append("\n**🔥 HIGH PRIORITY TASKS:**")
+        for task, due_status in high_priority[:5]:  # Limit to top 5
+            info = f"- {task.get('title', 'Untitled')}"
+            if due_status:
+                info += f" ({due_status})"
+            task_descriptions.append(info)
+    
+    # Add summary statistics
+    task_descriptions.append(f"\n**📊 SUMMARY:**")
+    task_descriptions.append(f"- Total active tasks: {len(open_tasks)}")
+    task_descriptions.append(f"- Overdue: {len(overdue_tasks)}")
+    task_descriptions.append(f"- Due today: {len(due_today)}")
+    task_descriptions.append(f"- Due this week: {len(due_this_week)}")
+    task_descriptions.append(f"- High/Critical priority: {len([t for t in open_tasks if t.get('priority') in ['High', 'Critical']])}")
     
     # Combine objectives and tasks for the prompt
     all_descriptions = objectives_text + task_descriptions
     
-    prompt = f"Please provide a brief executive summary of the current objectives (OKRs) and tasks. Focus on progress, priorities, and any critical items:\n\n" + "\n".join(all_descriptions)
+    # Enhanced prompt for better actionable summary
+    prompt = f"""Provide an actionable executive summary with these sections:
+1. URGENT: What needs immediate attention (overdue/due today)
+2. PRIORITIES: Top 3 tasks to focus on based on priority and deadlines
+3. WORKLOAD: Brief overview of overall task status
+4. RECOMMENDATION: Suggested action plan for today
+
+Task data:
+""" + "\n".join(all_descriptions)
     
     result = call_ai_api(settings, prompt, task_type='summarization', max_tokens=500)
     
@@ -853,6 +996,12 @@ def update_settings():
     
     if new_settings.get('api_key') and not new_settings['api_key'].startswith('***'):
         current_settings['api_key'] = new_settings['api_key']
+    
+    # Handle AI provider selection
+    if 'ai_provider' in new_settings:
+        current_settings['ai_provider'] = new_settings['ai_provider']
+        
+        # No model initialization needed anymore
     
     for key in ['notifications_enabled', 'check_interval']:
         if key in new_settings:
