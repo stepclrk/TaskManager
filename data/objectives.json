@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "title": "cxvb",
+    "description": "<p>xcvb</p>",
+    "objective_type": "aspirational",
+    "period": "Q1",
+    "status": "Active",
+    "target_date": null,
+    "confidence": 0.5,
+    "owner": "",
+    "key_results": [
+      {
+        "id": null,
+        "title": "xcvb",
+        "start_value": 0,
+        "current_value": 0,
+        "target_value": 4444,
+        "progress": 0,
+        "status": "Not Started"
+      }
+    ],
+    "okr_score": 0,
+    "id": "ca751eb2-e0af-4eb0-b245-51a17be45fef",
+    "created_at": "2025-08-27T16:47:00.364847",
+    "updated_at": "2025-08-27T16:47:00.364861"
+  }
+]

@@ -1,19 +1,19 @@
-// Topics management JavaScript
-let allTopics = [];
-let filteredTopics = [];
-let topicQuillEditor = null;
+// Projects management JavaScript
+let allProjects = [];
+let filteredProjects = [];
+let projectQuillEditor = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    loadTopics();
+    loadProjects();
     setupEventListeners();
     initializeQuillEditor();
 });
 
 function initializeQuillEditor() {
-    const container = document.getElementById('topicDescriptionEditor');
+    const container = document.getElementById('projectDescriptionEditor');
     if (!container) return;
     
-    topicQuillEditor = new Quill('#topicDescriptionEditor', {
+    projectQuillEditor = new Quill('#projectDescriptionEditor', {
         theme: 'snow',
         modules: {
             toolbar: [
@@ -25,21 +25,21 @@ function initializeQuillEditor() {
                 ['clean']
             ]
         },
-        placeholder: 'Describe the topic and its goals...'
+        placeholder: 'Describe the project and its goals...'
     });
     
     // Store reference on the container
-    container.__quill = topicQuillEditor;
+    container.__quill = projectQuillEditor;
 }
 
 function setupEventListeners() {
     // Modal controls
-    document.getElementById('addTopicBtn').addEventListener('click', () => openModal());
+    document.getElementById('addProjectBtn').addEventListener('click', () => openModal());
     document.querySelector('.close').addEventListener('click', closeModal);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
     
     // Form submission
-    document.getElementById('topicForm').addEventListener('submit', handleSubmit);
+    document.getElementById('projectForm').addEventListener('submit', handleSubmit);
     
     // Filters
     document.getElementById('statusFilter').addEventListener('change', applyFilters);
@@ -47,23 +47,23 @@ function setupEventListeners() {
     
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
-        const modal = document.getElementById('topicModal');
+        const modal = document.getElementById('projectModal');
         if (event.target === modal) {
             closeModal();
         }
     });
 }
 
-async function loadTopics() {
+async function loadProjects() {
     try {
         const response = await fetch('/api/projects');
         if (response.ok) {
-            allTopics = await response.json();
+            allProjects = await response.json();
             await loadTaskCounts();
             applyFilters();
         }
     } catch (error) {
-        console.error('Error loading topics:', error);
+        console.error('Error loading projects:', error);
     }
 }
 
@@ -73,12 +73,12 @@ async function loadTaskCounts() {
         if (response.ok) {
             const tasks = await response.json();
             
-            // Count tasks for each topic
-            allTopics.forEach(topic => {
-                const topicTasks = tasks.filter(task => task.project_id === topic.id);
-                topic.task_count = topicTasks.length;
-                topic.open_tasks = topicTasks.filter(t => t.status === 'Open').length;
-                topic.completed_tasks = topicTasks.filter(t => t.status === 'Completed').length;
+            // Count tasks for each project
+            allProjects.forEach(project => {
+                const projectTasks = tasks.filter(task => task.project_id === project.id);
+                project.task_count = projectTasks.length;
+                project.open_tasks = projectTasks.filter(t => t.status === 'Open').length;
+                project.completed_tasks = projectTasks.filter(t => t.status === 'Completed').length;
             });
         }
     } catch (error) {
@@ -90,14 +90,14 @@ function applyFilters() {
     const statusFilter = document.getElementById('statusFilter').value;
     const sortBy = document.getElementById('sortBy').value;
     
-    // Filter topics
-    filteredTopics = allTopics.filter(topic => {
-        if (statusFilter && topic.status !== statusFilter) return false;
+    // Filter projects
+    filteredProjects = allProjects.filter(project => {
+        if (statusFilter && project.status !== statusFilter) return false;
         return true;
     });
     
-    // Sort topics
-    filteredTopics.sort((a, b) => {
+    // Sort projects
+    filteredProjects.sort((a, b) => {
         switch(sortBy) {
             case 'created':
                 return new Date(b.created_at) - new Date(a.created_at);
@@ -114,45 +114,45 @@ function applyFilters() {
         }
     });
     
-    renderTopics();
+    renderProjects();
 }
 
-function renderTopics() {
-    const grid = document.getElementById('topicsGrid');
+function renderProjects() {
+    const grid = document.getElementById('projectsGrid');
     
-    if (filteredTopics.length === 0) {
+    if (filteredProjects.length === 0) {
         grid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #999;">
-                <h3>No topics found</h3>
-                <p>Create your first topic to organize your tasks</p>
+                <h3>No projects found</h3>
+                <p>Create your first project to organize your tasks</p>
             </div>
         `;
         return;
     }
     
-    grid.innerHTML = filteredTopics.map(topic => {
-        const statusClass = `status-${topic.status.toLowerCase().replace(' ', '-')}`;
-        const targetDate = topic.target_date ? new Date(topic.target_date).toLocaleDateString() : 'No target date';
-        const taskCount = topic.task_count || 0;
-        const openTasks = topic.open_tasks || 0;
-        const completedTasks = topic.completed_tasks || 0;
+    grid.innerHTML = filteredProjects.map(project => {
+        const statusClass = `status-${project.status.toLowerCase().replace(' ', '-')}`;
+        const targetDate = project.target_date ? new Date(project.target_date).toLocaleDateString() : 'No target date';
+        const taskCount = project.task_count || 0;
+        const openTasks = project.open_tasks || 0;
+        const completedTasks = project.completed_tasks || 0;
         
         return `
-            <div class="topic-card" onclick="navigateToWorkspace('${topic.id}')">
-                <div class="topic-header">
-                    <h3 class="topic-title">${escapeHtml(topic.title)}</h3>
-                    <span class="topic-status ${statusClass}">${topic.status}</span>
+            <div class="project-card" onclick="navigateToWorkspace('${project.id}')">
+                <div class="project-header">
+                    <h3 class="project-title">${escapeHtml(project.title)}</h3>
+                    <span class="project-status ${statusClass}">${project.status}</span>
                 </div>
                 
-                <div class="topic-description">
-                    ${topic.description || ''}
+                <div class="project-description">
+                    ${project.description || ''}
                 </div>
                 
-                <div class="topic-meta">
-                    <div class="topic-date">
+                <div class="project-meta">
+                    <div class="project-date">
                         📅 ${targetDate}
                     </div>
-                    <div class="topic-stats">
+                    <div class="project-stats">
                         <div class="stat-item">
                             <span class="stat-icon">📋</span>
                             <span class="stat-count">${taskCount}</span>
@@ -169,11 +169,11 @@ function renderTopics() {
                 </div>
                 
                 <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 5px;">
-                    <button class="btn btn-small" onclick="event.stopPropagation(); editTopic('${topic.id}')" 
+                    <button class="btn btn-small" onclick="event.stopPropagation(); editProject('${project.id}')" 
                             style="padding: 5px 10px; font-size: 0.85em;">
                         Edit
                     </button>
-                    <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteTopic('${topic.id}')" 
+                    <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteProject('${project.id}')" 
                             style="padding: 5px 10px; font-size: 0.85em; background: #e74c3c; color: white; border: none;">
                         Delete
                     </button>
@@ -183,73 +183,73 @@ function renderTopics() {
     }).join('');
 }
 
-function navigateToWorkspace(topicId) {
-    window.location.href = `/projects/${topicId}`;
+function navigateToWorkspace(projectId) {
+    window.location.href = `/projects/${projectId}`;
 }
 
-function openModal(topicId = null) {
-    const modal = document.getElementById('topicModal');
+function openModal(projectId = null) {
+    const modal = document.getElementById('projectModal');
     const modalTitle = document.getElementById('modalTitle');
-    const form = document.getElementById('topicForm');
+    const form = document.getElementById('projectForm');
     
-    if (topicId) {
-        const topic = allTopics.find(t => t.id === topicId);
-        if (topic) {
-            modalTitle.textContent = 'Edit Topic';
-            document.getElementById('topicId').value = topic.id;
-            document.getElementById('topicTitle').value = topic.title;
+    if (projectId) {
+        const project = allProjects.find(t => t.id === projectId);
+        if (project) {
+            modalTitle.textContent = 'Edit Project';
+            document.getElementById('projectId').value = project.id;
+            document.getElementById('projectTitle').value = project.title;
             
             // Set description in Quill editor
-            const description = topic.description || '';
-            document.getElementById('topicDescription').value = description;
-            if (topicQuillEditor) {
+            const description = project.description || '';
+            document.getElementById('projectDescription').value = description;
+            if (projectQuillEditor) {
                 if (description.includes('<') && description.includes('>')) {
-                    topicQuillEditor.root.innerHTML = description;
+                    projectQuillEditor.root.innerHTML = description;
                 } else {
-                    topicQuillEditor.setText(description);
+                    projectQuillEditor.setText(description);
                 }
             }
             
-            document.getElementById('topicStatus').value = topic.status;
-            document.getElementById('topicTargetDate').value = topic.target_date || '';
+            document.getElementById('projectStatus').value = project.status;
+            document.getElementById('projectTargetDate').value = project.target_date || '';
         }
     } else {
-        modalTitle.textContent = 'New Topic';
+        modalTitle.textContent = 'New Project';
         form.reset();
         
         // Clear Quill editor
-        if (topicQuillEditor) {
-            topicQuillEditor.setText('');
+        if (projectQuillEditor) {
+            projectQuillEditor.setText('');
         }
         
-        document.getElementById('topicStatus').value = 'Planning';
+        document.getElementById('projectStatus').value = 'Planning';
     }
     
     modal.style.display = 'block';
 }
 
 function closeModal() {
-    const modal = document.getElementById('topicModal');
+    const modal = document.getElementById('projectModal');
     modal.style.display = 'none';
-    document.getElementById('topicForm').reset();
+    document.getElementById('projectForm').reset();
 }
 
-function editTopic(topicId) {
-    openModal(topicId);
+function editProject(projectId) {
+    openModal(projectId);
 }
 
-async function deleteTopic(topicId) {
-    const topic = allTopics.find(t => t.id === topicId);
-    if (!topic) return;
+async function deleteProject(projectId) {
+    const project = allProjects.find(t => t.id === projectId);
+    if (!project) return;
     
-    const confirmMessage = `Are you sure you want to delete the topic "${topic.title}"?\n\nThis will remove the topic and unlink it from any associated tasks.`;
+    const confirmMessage = `Are you sure you want to delete the project "${project.title}"?\n\nThis will remove the project and unlink it from any associated tasks.`;
     
     if (!confirm(confirmMessage)) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/projects/${topicId}`, {
+        const response = await fetch(`/api/projects/${projectId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
@@ -257,31 +257,31 @@ async function deleteTopic(topicId) {
         });
         
         if (response.ok) {
-            showNotification('Topic deleted successfully!', 'success');
-            loadTopics(); // Reload the topics list
+            showNotification('Project deleted successfully!', 'success');
+            loadProjects(); // Reload the projects list
         } else {
             const error = await response.json();
-            showNotification(error.error || 'Failed to delete topic', 'error');
+            showNotification(error.error || 'Failed to delete project', 'error');
         }
     } catch (error) {
-        console.error('Error deleting topic:', error);
-        showNotification('Failed to delete topic', 'error');
+        console.error('Error deleting project:', error);
+        showNotification('Failed to delete project', 'error');
     }
 }
 
 async function handleSubmit(event) {
     event.preventDefault();
     
-    const topicId = document.getElementById('topicId').value;
+    const projectId = document.getElementById('projectId').value;
     
     // Get rich text content from Quill
     let descriptionValue = '';
-    if (topicQuillEditor) {
-        descriptionValue = topicQuillEditor.root.innerHTML;
+    if (projectQuillEditor) {
+        descriptionValue = projectQuillEditor.root.innerHTML;
         // Update hidden textarea
-        document.getElementById('topicDescription').value = descriptionValue;
+        document.getElementById('projectDescription').value = descriptionValue;
     } else {
-        descriptionValue = document.getElementById('topicDescription').value;
+        descriptionValue = document.getElementById('projectDescription').value;
     }
     
     // Validate description is not empty (check for empty or only whitespace/empty HTML)
@@ -294,37 +294,37 @@ async function handleSubmit(event) {
         return;
     }
     
-    const topicData = {
-        title: document.getElementById('topicTitle').value,
+    const projectData = {
+        title: document.getElementById('projectTitle').value,
         description: descriptionValue,
-        status: document.getElementById('topicStatus').value,
-        target_date: document.getElementById('topicTargetDate').value || null
+        status: document.getElementById('projectStatus').value,
+        target_date: document.getElementById('projectTargetDate').value || null
     };
     
     try {
-        const url = topicId ? `/api/projects/${topicId}` : '/api/projects';
-        const method = topicId ? 'PUT' : 'POST';
+        const url = projectId ? `/api/projects/${projectId}` : '/api/projects';
+        const method = projectId ? 'PUT' : 'POST';
         
         const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(topicData)
+            body: JSON.stringify(projectData)
         });
         
         if (response.ok) {
             closeModal();
-            loadTopics();
+            loadProjects();
             
             // Show success message
-            const message = topicId ? 'Topic updated successfully!' : 'Topic created successfully!';
+            const message = projectId ? 'Project updated successfully!' : 'Project created successfully!';
             showNotification(message, 'success');
         } else {
             const error = await response.json();
-            showNotification(error.error || 'Failed to save topic', 'error');
+            showNotification(error.error || 'Failed to save project', 'error');
         }
     } catch (error) {
-        console.error('Error saving topic:', error);
-        showNotification('Failed to save topic', 'error');
+        console.error('Error saving project:', error);
+        showNotification('Failed to save project', 'error');
     }
 }
 

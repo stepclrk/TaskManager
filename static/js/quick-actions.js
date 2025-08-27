@@ -95,7 +95,7 @@ function quickCreateProject() {
             openModal();
         } else {
             // Fallback: try to click the add project button
-            const addBtn = document.querySelector('#addTopicBtn, .add-topic-btn, button[onclick*="openModal"]');
+            const addBtn = document.querySelector('#addProjectBtn, .add-project-btn, button[onclick*="openModal"]');
             if (addBtn) addBtn.click();
         }
     } else {
@@ -110,7 +110,7 @@ function quickCreateObjective() {
     toggleQuickActionMenu();
     
     // Check if we're on the objectives page
-    if (window.location.pathname === '/topics' || window.location.pathname === '/objectives') {
+    if (window.location.pathname === '/objectives') {
         // If we're on the objectives page, use the existing function
         if (typeof openObjectiveModal === 'function') {
             openObjectiveModal();
@@ -124,7 +124,7 @@ function quickCreateObjective() {
     } else {
         // Store a flag in sessionStorage to open the objective modal after navigation
         sessionStorage.setItem('openNewObjective', 'true');
-        window.location.href = '/topics';
+        window.location.href = '/objectives';
     }
 }
 
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof openModal === 'function') {
                 openModal();
             } else {
-                const addBtn = document.querySelector('#addTopicBtn, .add-topic-btn, button[onclick*="openModal"]');
+                const addBtn = document.querySelector('#addProjectBtn, .add-project-btn, button[onclick*="openModal"]');
                 if (addBtn) addBtn.click();
             }
         }, 500);

@@ -484,5 +484,32 @@
     "attachments": [],
     "dependencies": [],
     "blocks": []
+  },
+  {
+    "title": "xcvb",
+    "customer_name": "xcvb",
+    "description": "",
+    "category": "Development",
+    "priority": "Low",
+    "follow_up_date": "",
+    "status": "Open",
+    "assigned_to": "",
+    "tags": "",
+    "project_id": "3a4660fa-8e2d-44e6-b861-400dc98a6e21",
+    "id": "4f28b101-b61e-4cac-9edf-0ec837139790",
+    "created_date": "2025-08-27T16:51:06.605623",
+    "history": [
+      {
+        "timestamp": "2025-08-27T16:51:06.605637",
+        "action": "created",
+        "field": "task",
+        "old_value": null,
+        "new_value": "Task created"
+      }
+    ],
+    "comments": [],
+    "attachments": [],
+    "dependencies": [],
+    "blocks": []
   }
 ]
