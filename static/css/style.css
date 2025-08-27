@@ -917,6 +917,8 @@ body {
     border-radius: 8px;
     width: 90%;
     max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
     position: relative;
 }
 
