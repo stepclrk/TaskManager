@@ -3,7 +3,12 @@
     position: fixed;
     bottom: 30px;
     right: 30px;
-    z-index: 1000;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.quick-actions-container > * {
+    pointer-events: auto;
 }
 
 .quick-action-main-btn {
@@ -41,6 +46,7 @@
     flex-direction: column;
     gap: 15px;
     align-items: flex-end;
+    z-index: 10000;
 }
 
 .quick-action-menu.show {
@@ -106,6 +112,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    z-index: 10001;
+    pointer-events: auto;
 }
 
 .quick-action-btn:hover {
@@ -133,8 +142,9 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.3);
-    z-index: 999;
+    z-index: 9998;
     display: none;
+    pointer-events: auto;
 }
 
 .quick-action-backdrop.show {
