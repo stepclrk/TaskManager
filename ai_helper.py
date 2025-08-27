@@ -19,37 +19,97 @@ def create_local_summary(content: str) -> str:
     overdue_tasks = []
     due_today_tasks = []
     due_tomorrow_tasks = []
+    due_this_week_tasks = []
     high_priority_tasks = []
     critical_priority_tasks = []
     categories = {}
     statuses = {}
     customers = {}
+    task_titles = []
+    objectives_info = []
+    
+    # Track sections we're in
+    current_section = None
+    total_count = 0
+    overdue_count = 0
+    due_today_count = 0
+    high_priority_count = 0
     
     lines = content.split('\n')
     
     for line in lines:
-        if line.strip().startswith('-'):
-            # Extract task details
-            task_info = line.strip()[1:].strip()
+        line_stripped = line.strip()
+        
+        # Check for section headers
+        if '**' in line:
+            if 'OVERDUE' in line:
+                current_section = 'overdue'
+            elif 'DUE TODAY' in line:
+                current_section = 'due_today'
+            elif 'DUE TOMORROW' in line:
+                current_section = 'due_tomorrow'
+            elif 'HIGH PRIORITY' in line or 'PRIORITY TASKS' in line:
+                current_section = 'high_priority'
+            elif 'SUMMARY' in line:
+                current_section = 'summary'
+            elif 'Active Objectives' in line:
+                current_section = 'objectives'
+            continue
             
-            # Check for overdue/due status
-            if 'OVERDUE' in task_info:
-                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
-                overdue_tasks.append(task_name.strip())
-            elif 'DUE TODAY' in task_info:
-                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
-                due_today_tasks.append(task_name.strip())
-            elif 'Due Tomorrow' in task_info:
-                task_name = task_info.split(' - ')[0] if ' - ' in task_info else task_info.split(' (')[0]
-                due_tomorrow_tasks.append(task_name.strip())
+        # Process summary statistics
+        if current_section == 'summary' and line_stripped.startswith('-'):
+            if 'Total active tasks:' in line:
+                try:
+                    total_count = int(line.split(':')[-1].strip())
+                except:
+                    pass
+            elif 'Overdue:' in line:
+                try:
+                    overdue_count = int(line.split(':')[-1].strip())
+                except:
+                    pass
+            elif 'Due today:' in line:
+                try:
+                    due_today_count = int(line.split(':')[-1].strip())
+                except:
+                    pass
+            elif 'High/Critical priority:' in line:
+                try:
+                    high_priority_count = int(line.split(':')[-1].strip())
+                except:
+                    pass
+        
+        # Process task items
+        if line_stripped.startswith('-'):
+            # Extract task details
+            task_info = line_stripped[1:].strip()
+            
+            # Extract task title (usually the first part before parentheses or dashes)
+            if ' - OVERDUE' in task_info or ' - DUE' in task_info:
+                task_title = task_info.split(' - ')[0].strip()
+            elif ' (Priority:' in task_info:
+                task_title = task_info.split(' (Priority:')[0].strip()
+            elif ' (' in task_info:
+                task_title = task_info.split(' (')[0].strip()
+            else:
+                task_title = task_info.strip()
+            
+            if task_title and len(task_title) > 3:  # Filter out very short/invalid titles
+                # Add to appropriate list based on current section
+                if current_section == 'overdue':
+                    overdue_tasks.append(task_title)
+                elif current_section == 'due_today':
+                    due_today_tasks.append(task_title)
+                elif current_section == 'due_tomorrow':
+                    due_tomorrow_tasks.append(task_title)
+                elif current_section == 'high_priority':
+                    high_priority_tasks.append(task_title)
             
             # Extract priority
-            if 'Critical' in task_info:
-                task_name = task_info.split(' (')[0] if ' (' in task_info else task_info
-                critical_priority_tasks.append(task_name.strip())
-            elif 'High' in task_info:
-                task_name = task_info.split(' (')[0] if ' (' in task_info else task_info
-                high_priority_tasks.append(task_name.strip())
+            if 'Priority: Critical' in task_info or 'critical' in task_info.lower():
+                critical_priority_tasks.append(task_title)
+            elif 'Priority: High' in task_info or 'high priority' in task_info.lower():
+                high_priority_tasks.append(task_title)
             
             # Extract category
             if 'Category:' in task_info:
@@ -62,90 +122,126 @@ def create_local_summary(content: str) -> str:
                 statuses[status_match] = statuses.get(status_match, 0) + 1
             
             # Extract customer
-            for part in task_info.split(','):
-                if part.strip() and not any(keyword in part for keyword in ['Category:', 'Status:', 'Priority:', 'OVERDUE', 'DUE TODAY']):
-                    # This might be a customer name
-                    customer = part.strip().split(' (')[0]
-                    if customer and len(customer) < 50:  # Reasonable customer name length
-                        customers[customer] = customers.get(customer, 0) + 1
+            if 'Customer:' in task_info:
+                customer_match = task_info.split('Customer:')[1].split(',')[0].strip()
+                if customer_match and customer_match != 'N/A':
+                    customers[customer_match] = customers.get(customer_match, 0) + 1
+        
+        # Check for objectives/OKR info
+        elif 'Objective:' in line or 'OKR:' in line:
+            objectives_info.append(line.strip())
     
-    # Count totals
-    task_count = len([l for l in lines if l.strip().startswith('-')])
-    overdue_count = len(overdue_tasks)
-    due_today_count = len(due_today_tasks)
+    # Use parsed counts if available, otherwise count from lists
+    if overdue_count == 0:
+        overdue_count = len(overdue_tasks)
+    if due_today_count == 0:
+        due_today_count = len(due_today_tasks)
+    if total_count == 0:
+        total_count = len([l for l in lines if l.strip().startswith('-')])
+    
     due_tomorrow_count = len(due_tomorrow_tasks)
-    high_priority_count = len(high_priority_tasks) + len(critical_priority_tasks)
     
-    # Build comprehensive summary
+    # Build comprehensive summary with proper formatting
     summary_parts = []
     
-    # Critical alerts section
+    # Start with a brief overview paragraph
+    if overdue_count > 0 or due_today_count > 0:
+        summary_parts.append(f"<div style='padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; margin-bottom: 15px; border-radius: 4px;'>")
+        summary_parts.append(f"<strong>⚠️ Attention Required:</strong> You have {overdue_count} overdue {'task' if overdue_count == 1 else 'tasks'} and {due_today_count} due today.</div>")
+    
+    # Overdue section
     if overdue_count > 0:
-        summary_parts.append(f"🔴 CRITICAL ALERT: {overdue_count} task{'s' if overdue_count > 1 else ''} overdue!")
-        if overdue_tasks and overdue_tasks[0]:
-            summary_parts.append(f"Immediate action needed on: {overdue_tasks[0][:50]}")
-    elif due_today_count > 0:
-        summary_parts.append(f"⚠️ TIME SENSITIVE: {due_today_count} task{'s' if due_today_count > 1 else ''} due today")
-        if due_today_tasks and due_today_tasks[0]:
-            summary_parts.append(f"Priority for today: {due_today_tasks[0][:50]}")
-    
-    # Task overview section
-    summary_parts.append(f"\n📊 TASK OVERVIEW")
-    summary_parts.append(f"Total Active Tasks: {task_count}")
-    
-    if critical_priority_tasks:
-        summary_parts.append(f"Critical Priority: {len(critical_priority_tasks)}")
-    if high_priority_tasks:
-        summary_parts.append(f"High Priority: {len(high_priority_tasks)}")
-    if due_tomorrow_count > 0:
-        summary_parts.append(f"Due Tomorrow: {due_tomorrow_count}")
-    
-    # Category breakdown if available
-    if categories and len(categories) > 1:
-        summary_parts.append(f"\n📁 BY CATEGORY")
-        top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:3]
-        for category, count in top_categories:
-            summary_parts.append(f"{category}: {count} task{'s' if count > 1 else ''}")
-    
-    # Status distribution if varied
-    if statuses and len(statuses) > 1:
-        summary_parts.append(f"\n📈 STATUS BREAKDOWN")
-        for status, count in sorted(statuses.items(), key=lambda x: x[1], reverse=True):
-            if status in ['Open', 'In Progress', 'Pending']:
-                summary_parts.append(f"{status}: {count}")
-    
-    # Top customers if available
-    if customers:
-        summary_parts.append(f"\n👥 KEY CUSTOMERS")
-        top_customers = sorted(customers.items(), key=lambda x: x[1], reverse=True)[:3]
-        for customer, count in top_customers:
-            if count > 1:
-                summary_parts.append(f"{customer}: {count} tasks")
-    
-    # Action recommendations
-    summary_parts.append(f"\n💡 RECOMMENDATIONS")
-    if overdue_count > 0:
-        summary_parts.append("• Clear overdue tasks immediately to prevent escalation")
+        summary_parts.append(f"<div style='margin-bottom: 15px;'>")
+        summary_parts.append(f"<strong style='color: #dc3545;'>🔴 Overdue ({overdue_count}):</strong>")
+        summary_parts.append("<ul style='margin: 5px 0; padding-left: 20px;'>")
+        for task in overdue_tasks[:3]:
+            if task:
+                summary_parts.append(f"<li>{task}</li>")
         if overdue_count > 3:
-            summary_parts.append("• Consider delegating or rescheduling lower priority items")
-    elif due_today_count > 0:
-        summary_parts.append("• Focus on today's deadlines first")
-        summary_parts.append("• Block time for uninterrupted work on critical items")
-    elif high_priority_count > 0:
-        summary_parts.append("• Address high-priority tasks while you have breathing room")
-        summary_parts.append("• Review upcoming deadlines to avoid last-minute rushes")
-    else:
-        summary_parts.append("• Good position - use this time for strategic planning")
-        summary_parts.append("• Consider tackling complex tasks while workload is manageable")
+            summary_parts.append(f"<li><em>...and {overdue_count - 3} more</em></li>")
+        summary_parts.append("</ul></div>")
     
-    # Workload assessment
-    summary_parts.append(f"\n📊 WORKLOAD ASSESSMENT")
-    if task_count > 20:
-        summary_parts.append("Heavy workload detected - consider prioritization strategies")
-    elif task_count > 10:
-        summary_parts.append("Moderate workload - maintain steady progress")
+    # Today's tasks
+    if due_today_count > 0:
+        summary_parts.append(f"<div style='margin-bottom: 15px;'>")
+        summary_parts.append(f"<strong style='color: #fd7e14;'>📅 Due Today ({due_today_count}):</strong>")
+        summary_parts.append("<ul style='margin: 5px 0; padding-left: 20px;'>")
+        for task in due_today_tasks[:3]:
+            if task:
+                summary_parts.append(f"<li>{task}</li>")
+        if due_today_count > 3:
+            summary_parts.append(f"<li><em>...and {due_today_count - 3} more</em></li>")
+        summary_parts.append("</ul></div>")
+    
+    # High priority items (if we have high priority count from summary)
+    if high_priority_count > 0 or high_priority_tasks:
+        if high_priority_count == 0:
+            high_priority_count = len(high_priority_tasks)
+        summary_parts.append(f"<div style='margin-bottom: 15px;'>")
+        summary_parts.append(f"<strong style='color: #6f42c1;'>🔥 High Priority ({high_priority_count}):</strong>")
+        summary_parts.append("<ul style='margin: 5px 0; padding-left: 20px;'>")
+        displayed = 0
+        for task in high_priority_tasks[:3]:
+            if task:
+                summary_parts.append(f"<li>{task}</li>")
+                displayed += 1
+        if high_priority_count > displayed:
+            summary_parts.append(f"<li><em>...and {high_priority_count - displayed} more</em></li>")
+        summary_parts.append("</ul></div>")
+    
+    # Upcoming tasks
+    if due_tomorrow_count > 0:
+        summary_parts.append(f"<div style='margin-bottom: 15px;'>")
+        summary_parts.append(f"<strong style='color: #20c997;'>📆 Tomorrow ({due_tomorrow_count}):</strong>")
+        summary_parts.append("<ul style='margin: 5px 0; padding-left: 20px;'>")
+        for task in due_tomorrow_tasks[:2]:
+            if task:
+                summary_parts.append(f"<li>{task}</li>")
+        if due_tomorrow_count > 2:
+            summary_parts.append(f"<li><em>...and {due_tomorrow_count - 2} more</em></li>")
+        summary_parts.append("</ul></div>")
+    
+    # Quick stats in a formatted box
+    summary_parts.append(f"<div style='padding: 10px; background: #e9ecef; border-radius: 4px; margin-bottom: 15px;'>")
+    summary_parts.append(f"<strong>📊 Quick Stats:</strong><br/>")
+    summary_parts.append(f"Total Tasks: <strong>{total_count}</strong> | ")
+    summary_parts.append(f"Overdue: <strong style='color: #dc3545;'>{overdue_count}</strong> | ")
+    summary_parts.append(f"Due Today: <strong style='color: #fd7e14;'>{due_today_count}</strong> | ")
+    summary_parts.append(f"High Priority: <strong style='color: #6f42c1;'>{high_priority_count}</strong>")
+    summary_parts.append("</div>")
+    
+    # Recommendations section in a nice box
+    summary_parts.append(f"<div style='padding: 10px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;'>")
+    summary_parts.append(f"<strong>💡 Recommendations:</strong><br/>")
+    
+    if overdue_count > 0:
+        if overdue_count > 5:
+            summary_parts.append(f"• <strong>Critical:</strong> Clear {overdue_count} overdue tasks immediately<br/>")
+            summary_parts.append("• Consider delegation or rescheduling lower priority items<br/>")
+        else:
+            summary_parts.append(f"• Focus on clearing {overdue_count} overdue {'task' if overdue_count == 1 else 'tasks'} first<br/>")
+            if overdue_tasks and overdue_tasks[0]:
+                summary_parts.append(f"• Start with: <em>{overdue_tasks[0][:40]}</em><br/>")
+    elif due_today_count > 0:
+        summary_parts.append(f"• Complete {due_today_count} {'task' if due_today_count == 1 else 'tasks'} due today<br/>")
+        if due_today_count > 3:
+            summary_parts.append("• Time-box work to meet all deadlines<br/>")
+    elif high_priority_count > 0:
+        summary_parts.append(f"• Address {high_priority_count} high-priority {'task' if high_priority_count == 1 else 'tasks'}<br/>")
+        if due_tomorrow_count > 0:
+            summary_parts.append(f"• Prepare for tomorrow's {due_tomorrow_count} {'task' if due_tomorrow_count == 1 else 'tasks'}<br/>")
     else:
-        summary_parts.append("Light workload - opportunity for proactive work")
+        if total_count > 10:
+            summary_parts.append(f"• Maintain steady progress on {total_count} tasks<br/>")
+            summary_parts.append("• Review and adjust priorities as needed<br/>")
+        elif total_count > 0:
+            summary_parts.append(f"• Light workload ({total_count} {'task' if total_count == 1 else 'tasks'}) - good time for planning<br/>")
+            summary_parts.append("• Consider tackling complex or strategic items<br/>")
+        else:
+            summary_parts.append("• No active tasks - inbox is clear!<br/>")
+            summary_parts.append("• Great time for planning or process improvements<br/>")
+    
+    summary_parts.append("</div>")
     
     return '\n'.join(summary_parts)
 

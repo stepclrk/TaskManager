@@ -284,6 +284,16 @@ async function handleSubmit(event) {
         descriptionValue = document.getElementById('topicDescription').value;
     }
     
+    // Validate description is not empty (check for empty or only whitespace/empty HTML)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = descriptionValue;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    if (!textContent.trim()) {
+        alert('Please provide a description for the project');
+        return;
+    }
+    
     const topicData = {
         title: document.getElementById('topicTitle').value,
         description: descriptionValue,

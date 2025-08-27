@@ -216,10 +216,6 @@ body {
     to { transform: rotate(360deg); }
 }
 
-.summary-content {
-    position: relative;
-}
-
 .summary-content p {
     margin-bottom: 1rem;
     line-height: 1.6;
@@ -1260,12 +1256,28 @@ small {
 }
 
 .summary-content {
-    max-height: 500px;
+    height: 20em;
+    min-height: 10em;
+    max-height: 40em;
     overflow-y: auto;
     padding: 15px;
     background: #f8f9fa;
     border-radius: 5px;
     margin-bottom: 20px;
+    resize: vertical;
+    line-height: 1.6;
+    font-size: 14px;
+    border: 2px solid #ddd;
+    position: relative;
+    overflow: auto;
+}
+
+/* Add a visual indicator for the resize handle */
+.summary-content::-webkit-resizer {
+    background: linear-gradient(135deg, transparent 50%, #999 50%);
+    background-size: 10px 10px;
+    background-position: 100% 100%;
+    background-repeat: no-repeat;
 }
 
 .summary-loading {

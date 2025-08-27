@@ -386,7 +386,13 @@ function displayCustomerTasks(customerTasks) {
 function formatAISummary(text) {
     if (!text) return '<p class="empty-message">No summary available</p>';
     
-    // Escape HTML first
+    // Check if the text already contains HTML tags (from local summary)
+    if (text.includes('<div') || text.includes('<strong>') || text.includes('<ul>')) {
+        // It's already HTML formatted (from 'none' provider), just return it
+        return text;
+    }
+    
+    // Otherwise, escape HTML first for Claude responses
     let formatted = escapeHtml(text);
     
     // Handle "Summary:" prefix if present
