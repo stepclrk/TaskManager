@@ -155,15 +155,21 @@ function loadComments(taskId) {
     if (comments.length === 0) {
         container.innerHTML = '<p class="no-comments">No comments yet</p>';
     } else {
-        container.innerHTML = comments.map(comment => `
+        container.innerHTML = comments.map(comment => {
+            // Check if comment contains HTML (rich text)
+            const commentText = comment.text || '';
+            const isHtml = commentText.includes('<') && commentText.includes('>');
+            
+            return `
             <div class="comment">
                 <div class="comment-header">
                     <span class="comment-author">${escapeHtml(comment.author || 'Anonymous')}</span>
                     <span class="comment-time">${formatDate(comment.timestamp)}</span>
                 </div>
-                <div class="comment-text">${escapeHtml(comment.text)}</div>
+                <div class="comment-text">${isHtml ? commentText : escapeHtml(commentText)}</div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 }
 

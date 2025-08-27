@@ -135,9 +135,23 @@
         "field": "description",
         "old_value": "This is a test",
         "new_value": "This communication represents a routine task of low priority. I am pleased to provide the following professional response: This is a test."
+      },
+      {
+        "timestamp": "2025-08-27T16:24:06.307751",
+        "action": "comment_added",
+        "field": "comments",
+        "old_value": null,
+        "new_value": "<p>sdffdv  <strong><em><u>ffffff</u></em></strong></p>"
       }
     ],
-    "comments": [],
+    "comments": [
+      {
+        "text": "<p>sdffdv  <strong><em><u>ffffff</u></em></strong></p>",
+        "author": "Current User",
+        "id": "4438d37e-3b3c-4d0b-beba-74e0bbbfb0c7",
+        "timestamp": "2025-08-27T16:24:06.307119"
+      }
+    ],
     "attachments": [],
     "dependencies": [],
     "blocks": []

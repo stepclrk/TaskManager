@@ -197,15 +197,52 @@ function setupEnhancedEventListeners() {
         });
     }
     
-    // Add comment
+    // Initialize comment Quill editor
+    let commentQuillEditor = null;
+    if (document.getElementById('commentEditor')) {
+        commentQuillEditor = new Quill('#commentEditor', {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link', 'blockquote'],
+                    ['clean']
+                ]
+            },
+            placeholder: 'Add a comment...'
+        });
+    }
+    
+    // Add comment with rich text support
     const addCommentBtn = document.getElementById('addCommentBtn');
     if (addCommentBtn) {
         addCommentBtn.addEventListener('click', async () => {
             const taskId = document.getElementById('taskId').value;
-            const text = document.getElementById('newComment').value;
             
-            if (taskId && text.trim()) {
-                await window.enhancedFeatures.addComment(taskId, text);
+            // Get HTML content from Quill editor
+            let commentHtml = '';
+            if (commentQuillEditor) {
+                commentHtml = commentQuillEditor.root.innerHTML;
+                // Also update hidden textarea
+                document.getElementById('newComment').value = commentHtml;
+            } else {
+                // Fallback to plain textarea
+                commentHtml = document.getElementById('newComment').value;
+            }
+            
+            // Check if comment is not empty (strip HTML tags for check)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = commentHtml;
+            const textContent = tempDiv.textContent || tempDiv.innerText || '';
+            
+            if (taskId && textContent.trim()) {
+                await window.enhancedFeatures.addComment(taskId, commentHtml);
+                
+                // Clear the editors
+                if (commentQuillEditor) {
+                    commentQuillEditor.setText('');
+                }
                 document.getElementById('newComment').value = '';
             }
         });
