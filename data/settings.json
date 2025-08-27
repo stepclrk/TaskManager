@@ -1,5 +1,6 @@
 {
   "api_key": "",
   "notifications_enabled": true,
-  "check_interval": 60
+  "check_interval": 60,
+  "ai_provider": "none"
 }

@@ -6,8 +6,14 @@ async function checkApiKeyAndSetupAI() {
         const response = await fetch('/api/settings');
         const settings = await response.json();
         
-        // Check if API key exists and is not empty
-        if (settings.api_key && settings.api_key !== '' && !settings.api_key.startsWith('***')) {
+        // Check AI provider type
+        const aiProvider = settings.ai_provider || 'claude';
+        
+        // Check if API key exists and is not empty (only for claude provider)
+        if (aiProvider === 'none') {
+            // Local summary mode doesn't need an API key
+            window.hasApiKey = true;
+        } else if (settings.api_key && settings.api_key !== '' && !settings.api_key.startsWith('***')) {
             window.hasApiKey = true;
         } else if (settings.api_key && settings.api_key.startsWith('***')) {
             // API key is masked, so it exists
@@ -16,9 +22,9 @@ async function checkApiKeyAndSetupAI() {
             window.hasApiKey = false;
         }
         
-        // Show/hide AI features based on API key
+        // Show/hide AI features based on API key or provider
         const aiSection = document.getElementById('aiSummarySection');
-        if (window.hasApiKey) {
+        if (window.hasApiKey || aiProvider === 'none') {
             aiSection.style.display = 'block';
             
             // Load last summary time from localStorage
@@ -551,7 +557,14 @@ async function generateAISummary(isManual = false) {
                 summaryDiv.innerHTML = `
                     <div class="summary-error">
                         <p>⚠️ API key not configured</p>
-                        <small>Please add your Anthropic API key in Settings to enable AI summaries.</small>
+                        <small>Please add your Anthropic API key in Settings to enable AI summaries, or select "None" as the AI tool for local summaries.</small>
+                    </div>
+                `;
+            } else if (data.error && data.error.includes('AI features are disabled')) {
+                summaryDiv.innerHTML = `
+                    <div class="summary-error">
+                        <p>⚠️ AI features are disabled</p>
+                        <small>This operation requires Claude AI. Please select Claude as the AI provider in Settings.</small>
                     </div>
                 `;
             } else {
